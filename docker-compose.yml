@@ -1,23 +1,27 @@
-# Cryptex — Docker Compose for Dokploy + standalone hosts.
+# Cryptex — Docker Compose for Dokploy.
 #
-# This is THE compose file Dokploy uses. It's configured for Dokploy-first
-# deployment (container on dokploy-network so Traefik can reach it).
+# Why this file looks the way it does:
+#   Dokploy's Traefik runs on the external `dokploy-network`, but when Dokploy
+#   deploys a Compose project it ALSO creates a project-local default network
+#   and attaches the container to that. The container ends up multi-homed.
+#   Without the `traefik.docker.network` hint + explicit membership in BOTH
+#   networks, Traefik picks the wrong interface IP and returns 404 for every
+#   request to the configured domain. This config follows the documented
+#   Dokploy workaround (GitHub Dokploy/dokploy#3200).
 #
 # DOKPLOY (primary target):
 #   1. Add this repo as a Docker Compose application in the Dokploy UI.
 #   2. Set Build Variables: PUBLIC_ADSENSE_CLIENT (optional), BASE_PATH (optional).
-#   3. In the Dokploy "Domains" tab, add your domain. Host: <your-domain>.
-#      Container Port: 80. Enable HTTPS with Let's Encrypt.
-#   4. Deploy. The container joins `dokploy-network` and Traefik handles routing.
+#   3. In the "Domains" tab, add your domain → Container Port 80 → HTTPS on.
+#   4. Deploy. Traefik routes via dokploy-network; container health-gates routing.
 #
-# STANDALONE (local dev, VPS without Dokploy):
-#   Run the one-liner from DEPLOY.md — it wraps `docker build` + `docker run`.
-#   This compose file won't work standalone because it depends on the
-#   external `dokploy-network`.
+# STANDALONE (local / VPS without Dokploy):
+#   See DEPLOY.md for the `docker build` + `docker run` one-liner — this
+#   compose file depends on the external `dokploy-network` that only exists
+#   after Dokploy is installed.
 
 services:
   cryptex:
-    container_name: cryptex
     image: cryptex:latest
     restart: unless-stopped
 
@@ -31,21 +35,27 @@ services:
     environment:
       TZ: "${TZ:-UTC}"
 
-    # `expose` makes port 80 reachable by other services on the same Docker
-    # network (including Dokploy's Traefik). No host port is published.
+    # `expose` keeps port 80 internal to Docker networks (Traefik reaches it
+    # over dokploy-network). No host publish — Dokploy uses its own port
+    # allocation for ingress.
     expose:
       - "80"
 
+    # Robust healthcheck: tiny GET to /health with explicit timeout + retries.
+    # Traefik refuses to route to unhealthy containers, which is the #2 cause
+    # of Dokploy 404s after network misconfig (#1).
     healthcheck:
-      test: ['CMD-SHELL', 'wget -q --spider http://localhost/health || exit 1']
+      test: ['CMD-SHELL', 'wget -q -O /dev/null --tries=1 --timeout=3 http://127.0.0.1/health || exit 1']
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 15s
 
     networks:
-      # Provisioned by Dokploy's installer. Traefik runs on this network and
-      # can only route to services that are on it too.
+      # Joining BOTH networks is the documented Dokploy workaround:
+      # - `default`        — project-local; Dokploy attaches here anyway.
+      # - `dokploy-network`— the network Traefik watches.
+      - default
       - dokploy-network
 
     deploy:
@@ -64,15 +74,22 @@ services:
         max-file: "3"
 
     labels:
+      # CRITICAL for a multi-homed container: tells Traefik which interface
+      # IP to route to. Without this, routing is undefined when the container
+      # has multiple network memberships. See Dokploy/dokploy#3200.
+      - "traefik.enable=true"
+      - "traefik.docker.network=dokploy-network"
+
+      # OCI metadata
       - "org.opencontainers.image.title=Cryptex"
       - "org.opencontainers.image.description=AI red-teamer's text lab — 162 transforms, steganography, BYOK AI rewrites."
       - "org.opencontainers.image.source=https://github.com/m4xx101/cryptex"
       - "org.opencontainers.image.licenses=MIT"
-      # Dokploy generates traefik.* labels automatically based on the Domains
-      # you configure in the UI. Only uncomment these if you want to pin
-      # routing in-repo (replace cryptex.your-domain.com with your host):
-      # - "traefik.enable=true"
-      # - "traefik.docker.network=dokploy-network"
+
+      # Dokploy's Domains UI generates the remaining traefik.* router + service
+      # labels automatically. Don't duplicate them in-repo — it causes label
+      # collisions. If you prefer to pin routing in-repo, remove the Domain
+      # entry from the Dokploy UI and uncomment + edit the block below.
       # - "traefik.http.routers.cryptex.rule=Host(`cryptex.your-domain.com`)"
       # - "traefik.http.routers.cryptex.entrypoints=websecure"
       # - "traefik.http.routers.cryptex.tls=true"
@@ -80,5 +97,7 @@ services:
       # - "traefik.http.services.cryptex.loadbalancer.server.port=80"
 
 networks:
+  default:
+    driver: bridge
   dokploy-network:
     external: true
