@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+
+# Tool pages render client-side; crawlers still get the shell + metadata.
+# The guide (/guide/*) and /about are the canonical indexable content.
+
+Sitemap: /sitemap.xml

@@ -7,3 +7,13 @@ __pycache__/
 *.pyc
 .env
 .env.local
+
+# SvelteKit (app/)
+app/.svelte-kit/
+app/build/
+app/.vite/
+app/vite.config.ts.timestamp-*
+app/vite.config.js.timestamp-*
+
+# Claude Code local session state
+.claude/

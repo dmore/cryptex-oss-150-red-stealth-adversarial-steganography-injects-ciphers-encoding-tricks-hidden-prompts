@@ -1,0 +1,90 @@
+# Cryptex — Docker Compose for local dev, self-host, and Dokploy.
+#
+# Quick start:
+#   cp .env.example .env
+#   docker compose up -d --build
+#   open http://localhost:8080
+#
+# Dokploy:
+#   This file is auto-detected. Set Build Variables in the Dokploy UI
+#   (BASE_PATH, PUBLIC_ADSENSE_CLIENT) and Deploy. Dokploy's Traefik takes
+#   care of routing + TLS. See DEPLOY.md for the full walkthrough.
+
+services:
+  cryptex:
+    container_name: cryptex
+    image: cryptex:latest
+    restart: unless-stopped
+
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # Build-time args — Vite inlines PUBLIC_* into the static bundle.
+      # Change requires rebuild; `docker compose up -d --build`.
+      args:
+        BASE_PATH: "${BASE_PATH:-}"
+        PUBLIC_ADSENSE_CLIENT: "${PUBLIC_ADSENSE_CLIENT:-}"
+
+    ports:
+      # Exposes the container's port 80 to the host on CRYPTEX_PORT (default
+      # 8080). On Dokploy this is internal-only — Traefik handles the public
+      # entry point.
+      - "${CRYPTEX_PORT:-8080}:80"
+
+    environment:
+      TZ: "${TZ:-UTC}"
+
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q --spider http://localhost/health || exit 1']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+    # Modest resource ceiling for a static site
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 256M
+        reservations:
+          cpus: "0.1"
+          memory: 32M
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    labels:
+      # OCI metadata
+      - "org.opencontainers.image.title=Cryptex"
+      - "org.opencontainers.image.description=AI red-teamer's text lab — 162 transforms, steganography, BYOK AI rewrites."
+      - "org.opencontainers.image.licenses=MIT"
+
+      # ---------------------------------------------------------------
+      # Dokploy / Traefik routing
+      # Uncomment and replace cryptex.your-domain.com with your domain.
+      # Dokploy creates the traefik-public network automatically.
+      # ---------------------------------------------------------------
+      # - "traefik.enable=true"
+      # - "traefik.docker.network=dokploy-network"
+      # - "traefik.http.routers.cryptex.rule=Host(`cryptex.your-domain.com`)"
+      # - "traefik.http.routers.cryptex.entrypoints=websecure"
+      # - "traefik.http.routers.cryptex.tls=true"
+      # - "traefik.http.routers.cryptex.tls.certresolver=letsencrypt"
+      # - "traefik.http.services.cryptex.loadbalancer.server.port=80"
+      # - "traefik.http.routers.cryptex-http.rule=Host(`cryptex.your-domain.com`)"
+      # - "traefik.http.routers.cryptex-http.entrypoints=web"
+      # - "traefik.http.routers.cryptex-http.middlewares=https-redirect"
+      # - "traefik.http.middlewares.https-redirect.redirectscheme.scheme=https"
+      # - "traefik.http.middlewares.https-redirect.redirectscheme.permanent=true"
+
+    # If you enable the Traefik labels above, also join the Dokploy network:
+    # networks:
+    #   - dokploy-network
+
+# networks:
+#   dokploy-network:
+#     external: true

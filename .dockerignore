@@ -1,0 +1,60 @@
+# Build context exclusions — keeps Docker build fast and deterministic.
+
+# Dependencies
+**/node_modules
+app/node_modules
+
+# Build outputs (regenerated inside the image)
+app/build
+app/.svelte-kit
+app/.vite
+dist
+build
+
+# Editor + IDE
+.vscode
+.idea
+*.swp
+*.swo
+.DS_Store
+
+# Git
+.git
+.gitignore
+.github
+.gitattributes
+
+# Python CLI artifacts (not part of web image)
+.venv
+__pycache__
+*.pyc
+python_tests
+uv.lock
+.ruff_cache
+.mypy_cache
+
+# Legacy Vue stack (being retired — not needed in Docker image)
+js
+css
+templates
+index.template.html
+temp_fetch_glitch.js
+
+# Local env + logs
+.env
+.env.local
+.env.*.local
+*.log
+npm-debug.log*
+
+# Tests / planning / docs
+tests
+docs
+.planning
+.cache
+
+# Lock files we don't use in build
+app/package-lock.json.backup
+
+# Claude / plan files
+CLAUDE.md

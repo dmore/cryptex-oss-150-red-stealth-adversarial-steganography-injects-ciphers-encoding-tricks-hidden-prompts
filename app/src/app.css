@@ -1,0 +1,108 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Cryptex — light: warm neutrals + vivid orange primary + steel accent */
+    --background: 30 25% 98%;
+    --foreground: 20 14% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 20 14% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 20 14% 10%;
+
+    --primary: 22 92% 52%;
+    --primary-foreground: 30 25% 98%;
+
+    --secondary: 30 18% 94%;
+    --secondary-foreground: 20 14% 14%;
+
+    --muted: 30 18% 94%;
+    --muted-foreground: 20 8% 38%;
+
+    --accent: 210 22% 28%;
+    --accent-foreground: 30 25% 98%;
+
+    --destructive: 0 72% 48%;
+    --destructive-foreground: 30 25% 98%;
+
+    --border: 30 15% 88%;
+    --input: 30 15% 88%;
+    --ring: 22 92% 52%;
+
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    /* Cryptex — dark: deep warm charcoal + glowing orange + cool steel accent */
+    --background: 20 18% 7%;
+    --foreground: 30 20% 95%;
+
+    --card: 22 14% 11%;
+    --card-foreground: 30 20% 95%;
+
+    --popover: 22 14% 11%;
+    --popover-foreground: 30 20% 95%;
+
+    --primary: 24 96% 60%;
+    --primary-foreground: 20 18% 7%;
+
+    --secondary: 22 10% 17%;
+    --secondary-foreground: 30 20% 95%;
+
+    --muted: 22 10% 17%;
+    --muted-foreground: 28 10% 64%;
+
+    --accent: 210 50% 70%;
+    --accent-foreground: 20 18% 7%;
+
+    --destructive: 0 72% 58%;
+    --destructive-foreground: 30 20% 95%;
+
+    --border: 22 10% 22%;
+    --input: 22 10% 22%;
+    --ring: 24 96% 60%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: 'cv11', 'ss01', 'ss03';
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.35);
+  }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-card/60 border border-foreground/5 backdrop-blur-glass;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .fade-in {
+    animation: fadeIn 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(2px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

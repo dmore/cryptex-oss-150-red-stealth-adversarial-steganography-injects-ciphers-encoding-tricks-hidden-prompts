@@ -31,30 +31,45 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-      
-      - name: Install dependencies
+          cache-dependency-path: |
+            package-lock.json
+            app/package-lock.json
+
+      - name: Install root dependencies (legacy tests)
         run: npm ci
-      
-      - name: Run tests
+
+      - name: Run legacy transformer tests
         run: npm run test:all
-      
-      - name: Build project
-        run: |
-          echo "Running full build..."
-          npm run build
-          echo "Build complete!"
-      
+
+      - name: Install app/ dependencies
+        working-directory: ./app
+        run: npm ci
+
+      - name: App unit tests (transformer registry + gibberish parity)
+        working-directory: ./app
+        run: npm run test:unit
+
+      - name: Svelte type check
+        working-directory: ./app
+        run: npm run check
+
+      - name: Build SvelteKit app
+        working-directory: ./app
+        env:
+          BASE_PATH: ${{ github.event.repository.name != github.event.repository.owner.login && format('/{0}', github.event.repository.name) || '' }}
+        run: npm run build
+
       - name: Verify build output
         run: |
-          test -f dist/index.html || (echo "❌ dist/index.html missing!" && exit 1)
-          test -f dist/js/bundles/transforms-bundle.js || (echo "❌ dist/js/bundles/transforms-bundle.js missing!" && exit 1)
-          test -f dist/js/data/emojiData.js || (echo "❌ dist/js/data/emojiData.js missing!" && exit 1)
-          echo "✅ All critical build files present"
-      
+          test -f app/build/index.html || (echo "app/build/index.html missing" && exit 1)
+          test -f app/build/gibberish/index.html || (echo "gibberish route missing" && exit 1)
+          test -f app/build/favicon.svg || (echo "favicon missing" && exit 1)
+          echo "Critical build files present"
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'dist/'
+          path: 'app/build/'
           retention-days: 7
 
   deploy:
