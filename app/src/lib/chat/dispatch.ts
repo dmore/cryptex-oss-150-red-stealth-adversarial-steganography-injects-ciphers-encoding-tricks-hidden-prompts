@@ -4,7 +4,7 @@ import { repo } from './repo';
 import { find as findTechnique } from './techniques/registry';
 import { parseSlash } from './slashParser';
 import { buildToolSchemas } from './toolSchemas';
-import type { ChatMessage, ChatRequest } from '$lib/ai/types';
+import type { ChatMessage, ChatRequest, ContentPart } from '$lib/ai/types';
 
 type Hooks = {
   onTextDelta?: (delta: string) => void;
@@ -12,6 +12,7 @@ type Hooks = {
   onToolCall?: (call: { toolCallId: string; toolName: string; input: unknown }) => void;
   onFinish?: (msg: MessageRow) => void;
   onError?: (err: Error) => void;
+  onUserMessageCreated?: (msg: MessageRow) => void;
 };
 
 function deriveTitle(rawDraft: string): string {
@@ -23,12 +24,24 @@ function deriveTitle(rawDraft: string): string {
   return t || 'New chat';
 }
 
+/** Extract a plain-text display string from a draft (string or ContentPart[]). */
+function draftDisplayText(draft: string | ContentPart[]): string {
+  if (typeof draft === 'string') return draft;
+  const textPart = draft.find((p): p is { type: 'text'; text: string } => p.type === 'text');
+  return textPart?.text ?? '(image)';
+}
+
 export async function sendTurn(
   chat: ChatRow,
-  rawDraft: string,
+  draft: string | ContentPart[],
   signal: AbortSignal,
   hooks: Hooks = {}
 ): Promise<void> {
+  const isParts = Array.isArray(draft);
+  // For slash parsing and mode wrapping we need a plain string.
+  // If draft is ContentPart[], extract the text portion; slash/mode features are text-only.
+  const rawDraft = isParts ? draftDisplayText(draft) : draft;
+
   // 1) Slash command — only activates for mutate-category techniques
   //    If the slash resolves to a non-mutator or is unknown, fall through to normal chat.
   const slash = parseSlash(rawDraft);
@@ -44,6 +57,7 @@ export async function sendTurn(
       modeApplied: 'btw',
       tags: []
     });
+    hooks.onUserMessageCreated?.(userMsg);
     if (chat.title === 'New chat') {
       await repo.updateChat(chat.id, { title: deriveTitle(rawDraft) });
     }
@@ -137,6 +151,7 @@ export async function sendTurn(
           modeApplied: t.id,
           tags: []
         });
+        hooks.onUserMessageCreated?.(userMsg);
         if (chat.title === 'New chat') {
           await repo.updateChat(chat.id, { title: deriveTitle(rawDraft) });
         }
@@ -238,40 +253,51 @@ export async function sendTurn(
     // Unknown slash or non-mutator → fall through to normal chat
   }
 
-  // 2) Mode wrapping (local template)
+  // 2) Mode wrapping (local template) — text-only; skip when draft is multimodal ContentPart[]
   let content = rawDraft;
   const modeId = chat.settings.activeMode;
-  if (modeId) {
+  if (!isParts && modeId) {
     const mode = findTechnique(modeId);
     if (mode?.wrapDraft) {
       content = await mode.wrapDraft(rawDraft, { callLLM: async () => '', signal });
     }
   }
 
-  // 3) Persist user message
+  // 3) Persist user message — always store a plain string in Dexie for display purposes.
+  //    When draft is ContentPart[], use the extracted display text so the bubble renders cleanly.
+  const displayContent = isParts ? draftDisplayText(draft) : content;
   const userMsg = await repo.saveMessage({
     chatId: chat.id,
     role: 'user',
-    content,
-    contentRaw: content !== rawDraft ? rawDraft : undefined,
-    modeApplied: modeId ?? undefined,
+    content: displayContent,
+    contentRaw: !isParts && content !== rawDraft ? rawDraft : undefined,
+    modeApplied: !isParts ? (modeId ?? undefined) : undefined,
     tags: []
   });
+  hooks.onUserMessageCreated?.(userMsg);
   if (chat.title === 'New chat') {
     await repo.updateChat(chat.id, { title: deriveTitle(rawDraft) });
   }
 
-  // 4) Build provider messages + tool schemas
+  // 4) Build provider messages + tool schemas.
+  //    History is loaded from Dexie (plain strings). For the new user turn, replace the last
+  //    history entry with the original draft (ContentPart[] or mode-wrapped string) so the LLM
+  //    receives the full multimodal content.
   const history = await repo.listMessages(chat.id);
   const providerMessages: ChatMessage[] = [];
   if (chat.settings.systemPrompt.trim()) {
     providerMessages.push({ role: 'system', content: chat.settings.systemPrompt });
   }
-  for (const m of history) {
+  // Push all history messages except the last one (which is the user message we just saved,
+  // stored as plain text). We'll append the real draft content below.
+  const historyWithoutLast = history.slice(0, -1);
+  for (const m of historyWithoutLast) {
     if (m.role === 'system' || m.role === 'user' || m.role === 'assistant') {
       providerMessages.push({ role: m.role, content: m.content });
     }
   }
+  // Append the new user turn: ContentPart[] for image messages, mode-wrapped string otherwise.
+  providerMessages.push({ role: 'user', content: isParts ? draft : content });
 
   const tools =
     chat.settings.enabledToolIds.length > 0

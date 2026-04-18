@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { MessageRow, ChatRow } from '$lib/chat/types';
+  import type { MessageRow, ChatRow, AttachmentRow } from '$lib/chat/types';
   import ReasoningBlock from './ReasoningBlock.svelte';
   import ToolCallCard from './ToolCallCard.svelte';
   import { forkChat } from '$lib/chat/dispatch';
@@ -11,15 +11,26 @@
   import Check from 'lucide-svelte/icons/check';
   import GitBranch from 'lucide-svelte/icons/git-branch';
   import ChevronRight from 'lucide-svelte/icons/chevron-right';
+  import Paperclip from 'lucide-svelte/icons/paperclip';
   import Logo from '$lib/components/brand/Logo.svelte';
   import UserIcon from 'lucide-svelte/icons/user';
   import Wrench from 'lucide-svelte/icons/wrench';
   import Info from 'lucide-svelte/icons/info';
+  import { repo } from '$lib/chat/repo';
 
   type Props = { message: MessageRow; chat: ChatRow; live?: boolean };
   let { message, chat, live = false }: Props = $props();
 
   let copied = $state(false);
+  let attachments = $state<AttachmentRow[]>([]);
+
+  $effect(() => {
+    if (message.attachmentIds && message.attachmentIds.length > 0) {
+      repo.listAttachments(message.id).then((rows) => { attachments = rows; });
+    } else {
+      attachments = [];
+    }
+  });
 
   async function handleFork() {
     try {
@@ -158,6 +169,15 @@
     </div>
   {:else if isUser && message.modeApplied && SLASH_MUTATORS.has(message.modeApplied) && message.contentRaw && message.contentRaw !== message.content}
     <!-- Slash mutator: show original slash command + collapsible with the mutated result -->
+    {#if attachments.length > 0}
+      <div class="mb-2 flex flex-wrap gap-1.5">
+        {#each attachments as a (a.id)}
+          <span class="inline-flex items-center gap-1 rounded-md border border-border/50 bg-muted/30 px-2 py-0.5 text-xs text-muted-foreground">
+            <Paperclip size={10} /> {a.name} <span class="opacity-60">· {Math.round(a.size / 1024)} KB</span>
+          </span>
+        {/each}
+      </div>
+    {/if}
     <p class="whitespace-pre-wrap leading-relaxed">{message.contentRaw}</p>
     <details class="group mt-2 rounded-md border border-border/40 bg-muted/20 text-xs">
       <summary class="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-muted-foreground hover:text-foreground select-none">
@@ -170,7 +190,21 @@
     </details>
   {:else}
     <!-- Plain user message OR mode-applied (show contentRaw if present, else content) -->
-    <p class="whitespace-pre-wrap leading-relaxed">{message.contentRaw ?? message.content}</p>
+    {#if attachments.length > 0}
+      <div class="mb-2 flex flex-wrap gap-1.5">
+        {#each attachments as a (a.id)}
+          <span class="inline-flex items-center gap-1 rounded-md border border-border/50 bg-muted/30 px-2 py-0.5 text-xs text-muted-foreground">
+            <Paperclip size={10} /> {a.name} <span class="opacity-60">· {Math.round(a.size / 1024)} KB</span>
+          </span>
+        {/each}
+      </div>
+    {/if}
+    {@const displayText = message.contentRaw ?? message.content}
+    {#if displayText.trim()}
+      <p class="whitespace-pre-wrap leading-relaxed">{displayText}</p>
+    {:else if attachments.length === 0}
+      <p class="whitespace-pre-wrap leading-relaxed">{displayText}</p>
+    {/if}
   {/if}
 
   <!-- Timestamp footer -->

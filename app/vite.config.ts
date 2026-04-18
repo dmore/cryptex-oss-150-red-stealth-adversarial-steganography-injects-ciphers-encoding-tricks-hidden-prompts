@@ -58,6 +58,7 @@ export default defineConfig({
       'lucide-svelte/icons/eye',
       'lucide-svelte/icons/eye-off',
       'lucide-svelte/icons/file',
+      'lucide-svelte/icons/paperclip',
       'lucide-svelte/icons/flask-conical',
       'lucide-svelte/icons/gift',
       'lucide-svelte/icons/github',

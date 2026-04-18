@@ -1,8 +1,13 @@
 <script lang="ts">
   import type { ToolCallLog } from '$lib/chat/types';
+  import InlineErrorCard from './InlineErrorCard.svelte';
   type Props = { call: ToolCallLog };
   let { call }: Props = $props();
 </script>
+
+{#if call.errorMessage}
+  <InlineErrorCard message={call.errorMessage} />
+{/if}
 
 <details class="mb-2 rounded-md border border-primary/20 bg-primary/5 p-2 text-xs">
   <summary class="cursor-pointer text-primary">
