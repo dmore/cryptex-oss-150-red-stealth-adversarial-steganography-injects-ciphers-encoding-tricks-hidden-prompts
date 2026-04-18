@@ -1,6 +1,7 @@
 <script lang="ts">
   import ChatSidebar from './sidebar/ChatSidebar.svelte';
-  import TechniquesSidebarPlaceholder from './techniques/TechniquesSidebarPlaceholder.svelte';
+  import TechniquesSidebar from './techniques/TechniquesSidebar.svelte';
+  import SelectionPopover from './techniques/SelectionPopover.svelte';
   import DatasetFooter from './footer/DatasetFooter.svelte';
   let { children } = $props();
 </script>
@@ -15,7 +16,8 @@
     {@render children?.()}
   </section>
   <aside class="glass rounded-lg border border-white/10 p-3 overflow-hidden hidden lg:block">
-    <TechniquesSidebarPlaceholder />
+    <TechniquesSidebar />
   </aside>
 </div>
+<SelectionPopover />
 <DatasetFooter />
