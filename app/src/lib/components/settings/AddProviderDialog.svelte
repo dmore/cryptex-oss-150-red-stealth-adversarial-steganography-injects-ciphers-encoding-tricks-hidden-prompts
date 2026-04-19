@@ -189,7 +189,7 @@
           <button type="button" onclick={() => pickPreset('custom')} class="w-full rounded-md px-3 py-2 text-left hover:bg-white/5">Custom endpoint</button>
         </div>
         <p class="mt-4 text-xs text-muted-foreground">
-          Every OpenAI-compatible preset above works direct from the browser since CSP was widened in <code class="font-mono">nginx.conf</code> (2026-04-19). If you self-host Cryptex with a stricter Content-Security-Policy, deploy the proxy template at <a class="underline" href="/guide/cors-proxy/">/guide/cors-proxy</a> or relax <code class="font-mono">connect-src</code>.
+          Every provider above works direct from your browser. Paste your API key from the provider's own dashboard — it stays on this device.
         </p>
       {:else if chosen === 'openrouter'}
         <label class="block text-sm">

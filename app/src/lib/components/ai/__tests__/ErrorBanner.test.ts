@@ -18,10 +18,15 @@ describe('ErrorBanner', () => {
     expect(getByText(/retry in 4s/i)).toBeTruthy();
   });
 
-  it('renders cors with Set up a CORS proxy CTA', () => {
+  it('renders cors with Retry + Switch provider CTAs when handlers supplied', () => {
     const err = new GatewayError("can't reach", { category: 'cors', provider: 'openai-compat' });
-    const { getByText } = render(ErrorBanner, { error: err });
+    const { getByText } = render(ErrorBanner, {
+      error: err,
+      onRetry: () => {},
+      onSwitchProvider: () => {}
+    });
     expect(getByText(/Can't reach/i)).toBeTruthy();
-    expect(getByText(/Set up a CORS proxy/i)).toBeTruthy();
+    expect(getByText(/Retry/i)).toBeTruthy();
+    expect(getByText(/Switch provider/i)).toBeTruthy();
   });
 });

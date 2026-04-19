@@ -23,10 +23,11 @@ directly to `openrouter.ai`. The key lives in `localStorage` under
 `cryptex.openrouterApiKey` and never touches a Cryptex server (because there
 isn't one — the site is static HTML + JS).
 
-## No server, no telemetry
+## No telemetry
 
-The production nginx sets a strict CSP: `connect-src 'self' https://openrouter.ai`
-and nothing else. No analytics SDK, no error reporter, no "anonymous usage".
+Cryptex ships no analytics SDK, no error reporter, and no "anonymous
+usage" beacon. The only outbound network traffic is the direct call
+from your browser to the AI provider you configured.
 
 ## AdSense — on two pages, with consent
 

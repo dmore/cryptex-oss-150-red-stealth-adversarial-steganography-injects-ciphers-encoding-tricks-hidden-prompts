@@ -73,12 +73,11 @@
         {#if onSwitchProvider}<button type="button" class="underline text-red-200 hover:text-red-100" onclick={onSwitchProvider}>Switch provider</button>{/if}
       {/if}
       {#if error.category === 'cors'}
-        <a href="/guide/cors-proxy/" class="underline text-red-200 hover:text-red-100">Set up a CORS proxy</a>
-        {#if onSwitchProvider}
-          <button type="button" class="underline text-red-200 hover:text-red-100" onclick={onSwitchProvider}>Route via OpenRouter</button>
+        {#if onRetry}
+          <button type="button" class="underline text-red-200 hover:text-red-100" onclick={onRetry}>Retry</button>
         {/if}
-        {#if onLearnWhy}
-          <button type="button" class="underline text-red-200 hover:text-red-100" onclick={onLearnWhy}>Learn why</button>
+        {#if onSwitchProvider}
+          <button type="button" class="underline text-red-200 hover:text-red-100" onclick={onSwitchProvider}>Switch provider</button>
         {/if}
       {/if}
     </div>

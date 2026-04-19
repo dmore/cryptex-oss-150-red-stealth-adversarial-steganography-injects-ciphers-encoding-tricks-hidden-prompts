@@ -426,10 +426,9 @@ Raise `maxTokens` in chat settings before your next run.
 
 ### "Can't reach provider"
 
-The browser can't open the fetch to your provider's endpoint. In
-nearly every case this is a CSP problem on your deployment, not a
-provider CORS issue — see [cors-proxy](/guide/cors-proxy/) for the
-full diagnostic flow.
+The browser couldn't open the connection to your provider's endpoint.
+Click **Retry** on the banner. If it keeps failing, switch to a
+different provider for that chat — your other keys are still good.
 
 ### "Chain gets stuck on a composite layer"
 

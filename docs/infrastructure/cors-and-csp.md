@@ -1,11 +1,12 @@
----
-title: Reaching more providers (CSP and CORS explained)
-description: Why Groq / OpenAI / Gemini sometimes fail from the browser — and why the cause is almost always your own deployment's CSP, not the provider.
-category: tools
-order: 10
----
+# Internal: CSP and CORS in Cryptex
 
-# Reaching more providers (CSP and CORS explained)
+> This document is **internal engineering reference**, not user-facing
+> documentation. Cryptex is a SaaS — end users never deploy their own
+> nginx, Docker, or Dokploy. If you're reading this, you're working on
+> Cryptex's infrastructure or debugging a production incident involving
+> outbound provider calls.
+
+## Why it matters
 
 If you self-host Cryptex via nginx, Docker, or Dokploy and can't reach
 Groq, OpenAI, Gemini, or any other first-party provider from the

@@ -31,11 +31,6 @@ Offline tools (Transform, Decode, Emoji, Fuzzer, …) never hit OpenRouter.
 Open the History drawer (clock icon in the header) and hit Export. You'll get
 a JSON file with every tool run in the current tab.
 
-**Can I self-host?**
-Yes. `docker compose up --build` spins up a production-mode nginx on port 8080.
-There's also a Dokploy-friendly Dockerfile and a GitHub Pages workflow with the
-`BASE_PATH` plumbed in. See the README for step-by-step.
-
 **Is the CLI the same as the web app?**
 The Python CLI reuses the exact same 162 transformer modules via a Node
 bridge — one source of truth, three runtimes.

@@ -49,15 +49,12 @@ models at the vendor's official latency and the full 200K context
 without OpenRouter's per-request rate limits. It works in the browser
 via the `anthropic-dangerous-direct-browser-access` header.
 
-**OpenAI direct** is supported. This changed in Cryptex 2026-04-19 —
-the `api.openai.com` endpoint has been CORS-open for browser
-requests for a while, but Cryptex's shipped CSP didn't allow it
-until commit `9bbd2d2`. If you self-host with a stricter CSP, you
-need to widen `connect-src` — see [cors-proxy](/guide/cors-proxy/).
+**OpenAI direct** is supported. Paste your OpenAI API key in Settings
+and every GPT-4o / GPT-4 / o-series model appears in the picker.
 
-**Google Gemini direct** is supported via the OpenAI-compat layer
-exposed at `https://generativelanguage.googleapis.com/v1beta/openai`.
-Same CSP caveat.
+**Google Gemini direct** is supported via Google's OpenAI-compat layer.
+Paste your Gemini key and Gemini 2.5 Pro / Flash models appear
+alongside the rest.
 
 ## Adding a provider
 
