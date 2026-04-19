@@ -2,6 +2,7 @@
   import type { MessageRow, ChatRow, AttachmentRow } from '$lib/chat/types';
   import ReasoningBlock from './ReasoningBlock.svelte';
   import ToolCallCard from './ToolCallCard.svelte';
+  import CodeBlock from './CodeBlock.svelte';
   import { forkChat } from '$lib/chat/dispatch';
   import { goto } from '$app/navigation';
   import { base } from '$app/paths';
@@ -165,7 +166,7 @@
 
   {#if isAssistant || isTool}
     <div class="prose prose-sm dark:prose-invert max-w-none min-w-0 leading-relaxed text-foreground">
-      <Streamdown content={message.content} />
+      <Streamdown content={message.content} components={{ code: CodeBlock }} />
     </div>
   {:else if isUser && message.modeApplied && SLASH_MUTATORS.has(message.modeApplied) && message.contentRaw && message.contentRaw !== message.content}
     <!-- Slash mutator: show original slash command + collapsible with the mutated result -->
