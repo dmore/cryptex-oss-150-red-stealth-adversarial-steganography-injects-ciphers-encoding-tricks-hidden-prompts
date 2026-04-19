@@ -39,6 +39,9 @@
   let executeEnabled = $state(true);
   let finalSystemPrompt = $state('');
   let finalSystemPromptOpen = $state(false);
+  // Auto-retry: on refusal detection, swap to a curated fallback technique
+  // and re-run that layer before moving on. See attack-chain.ts FALLBACK_ORDER.
+  let autoRetryEnabled = $state(true);
 
   const canRun = $derived(
     input.trim().length > 0 &&
@@ -133,10 +136,14 @@
         ctx,
         abort.signal,
         layerOutputEdits,
-        { enabled: executeEnabled, systemPrompt: finalSystemPrompt.trim() || undefined }
+        { enabled: executeEnabled, systemPrompt: finalSystemPrompt.trim() || undefined },
+        { enabled: autoRetryEnabled }
       )) {
         results = [...results, row];
-        if (row.error) break;
+        // Non-retry errors stop the chain. Refusal-retry rows also carry an
+        // `error` field but their layerIndex will be re-emitted on the next
+        // attempt — the runner itself decides whether to continue. Don't
+        // break on every error here; the generator's completion signals end.
       }
     } finally {
       running = false;
@@ -257,11 +264,17 @@
       </button>
     </div>
 
-    <!-- Execute toggle -->
-    <label class="flex items-center gap-2 text-xs text-muted-foreground">
-      <input type="checkbox" bind:checked={executeEnabled} class="h-3.5 w-3.5 rounded accent-primary" />
-      Execute final prompt against model and capture response
-    </label>
+    <!-- Execute + auto-retry toggles -->
+    <div class="flex flex-col gap-1.5">
+      <label class="flex items-center gap-2 text-xs text-muted-foreground">
+        <input type="checkbox" bind:checked={executeEnabled} class="h-3.5 w-3.5 rounded accent-primary" />
+        Execute final prompt against model and capture response
+      </label>
+      <label class="flex items-center gap-2 text-xs text-muted-foreground">
+        <input type="checkbox" bind:checked={autoRetryEnabled} class="h-3.5 w-3.5 rounded accent-primary" />
+        Auto-retry with fallback technique on refusal (max 4 attempts per layer)
+      </label>
+    </div>
 
     <!-- Optional system prompt for the final turn -->
     <details class="group rounded-md border border-border/40 bg-background/40 text-xs" bind:open={finalSystemPromptOpen}>
@@ -328,7 +341,7 @@
     {#if results.length > 0}
       <div class="flex flex-col gap-1.5">
         <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Results</span>
-        {#each results as row (row.layerIndex)}
+        {#each results as row (`${row.layerIndex}-${row.attempt ?? 0}-${row.techniqueId}`)}
           <LayerResult
             {row}
             onEditOutput={handleEditOutput}

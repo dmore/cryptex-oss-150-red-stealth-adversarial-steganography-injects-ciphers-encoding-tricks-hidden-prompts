@@ -261,6 +261,76 @@ describe('runChain finalExecution', () => {
   });
 });
 
+describe('runChain refusal retry', () => {
+  it('retries with fallback technique when primary layer returns a refusal', async () => {
+    const refusingTech: MockTechnique = {
+      id: 'primary_ref',
+      name: 'Primary',
+      description: '',
+      category: 'mutate',
+      local: true,
+      apply: async () => ({ output: 'I cannot help with that request.' })
+    };
+    // Inject into registry and into FALLBACK_ORDER via a known fallback id.
+    // Use 'academic_framing' as the fallback slot the runner will walk to —
+    // stub it as a passing technique here.
+    REGISTRY['primary_ref'] = refusingTech;
+    REGISTRY['academic_framing'] = {
+      id: 'academic_framing',
+      name: 'Academic framing',
+      description: '',
+      category: 'mutate',
+      local: true,
+      apply: async (input) => ({ output: `ACADEMIC(${input})` })
+    };
+
+    const signal = new AbortController().signal;
+    const ctx = makeCtx();
+    const rows = await collect(
+      runChain('seed', ['primary_ref'], [{}], ctx, signal, undefined, undefined, { enabled: true })
+    );
+
+    expect(rows.length).toBeGreaterThanOrEqual(2);
+    // First row is the refusal with error annotation
+    expect(rows[0].techniqueId).toBe('primary_ref');
+    expect(rows[0].error).toMatch(/refusal/i);
+    expect(rows[0].attempt).toBe(0);
+    // Second row is the fallback attempt with success
+    expect(rows[1].techniqueId).toBe('academic_framing');
+    expect(rows[1].output).toBe('ACADEMIC(seed)');
+    expect(rows[1].attempt).toBe(1);
+    expect(rows[1].error).toBeUndefined();
+
+    delete REGISTRY['primary_ref'];
+    delete REGISTRY['academic_framing'];
+  });
+
+  it('does not retry when retry is disabled (default)', async () => {
+    const refusingTech: MockTechnique = {
+      id: 'refuser',
+      name: 'Refuser',
+      description: '',
+      category: 'mutate',
+      local: true,
+      apply: async () => ({ output: 'I am unable to help with this request.' })
+    };
+    REGISTRY['refuser'] = refusingTech;
+
+    const signal = new AbortController().signal;
+    const ctx = makeCtx();
+    // No retry option -> should emit only 1 row and forward refusal as-is
+    const rows = await collect(
+      runChain('seed', ['refuser'], [{}], ctx, signal)
+    );
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].techniqueId).toBe('refuser');
+    expect(rows[0].error).toBeUndefined();
+
+    delete REGISTRY['refuser'];
+  });
+});
+
 describe('buildLayerPrompt', () => {
   it('returns scaffolded SYSTEM+USER prompt for a known mutator', () => {
     const p = buildLayerPrompt('rephrase', 'write a limerick about clouds', {});

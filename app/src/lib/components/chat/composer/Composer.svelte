@@ -15,7 +15,7 @@
   import type { PendingAttachment } from './AttachmentChips.svelte';
   import Paperclip from 'lucide-svelte/icons/paperclip';
   import { ulid } from 'ulid';
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
 
   type Props = {
     chat: ChatRow;
@@ -43,15 +43,18 @@
     const attachHandler = () => fileInputEl?.click();
     window.addEventListener('chat:attach-file', attachHandler);
 
-    const insertHandler = (e: Event) => {
+    const insertHandler = async (e: Event) => {
       const text = (e as CustomEvent<{ text: string }>).detail?.text;
-      if (typeof text === 'string') {
-        draft = text;
-        if (textareaEl) {
-          textareaEl.style.height = 'auto';
-          textareaEl.style.height = Math.min(textareaEl.scrollHeight, 300) + 'px';
-          textareaEl.focus();
-        }
+      if (typeof text !== 'string') return;
+      draft = text;
+      // Wait for Svelte to flush the draft binding into the DOM; otherwise
+      // scrollHeight still reflects the old (empty) textarea value and the
+      // height stays at the 2-row default until the next keypress.
+      await tick();
+      if (textareaEl) {
+        textareaEl.style.height = 'auto';
+        textareaEl.style.height = Math.min(textareaEl.scrollHeight, 300) + 'px';
+        textareaEl.focus();
       }
     };
     window.addEventListener('composer:insert', insertHandler);
