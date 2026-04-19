@@ -55,17 +55,10 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
-// Default max output tokens when the caller does not specify. Providers
-// (especially OpenRouter for OpenAI-family models) default to a low cap
-// (~512) when this is undefined, which silently truncates long replies
-// mid-stream. 8192 fits typical code/prose responses without breaking the
-// bank; callers can still override per-request.
-const DEFAULT_MAX_OUTPUT_TOKENS = 8192;
-
 function normalizeRequest(req: ChatRequest): ChatRequest {
   return {
     ...req,
-    maxOutputTokens: req.maxOutputTokens ?? req.max_tokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
+    maxOutputTokens: req.maxOutputTokens ?? req.max_tokens,
     topP: req.topP ?? req.top_p
   };
 }
