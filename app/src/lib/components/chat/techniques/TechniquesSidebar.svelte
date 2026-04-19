@@ -19,6 +19,7 @@
   const transform = $derived(items('transform'));
   const mutate = $derived(items('mutate'));
   const classifier = $derived(items('classifier'));
+  const composite = $derived(items('composite'));
   const mode = $derived(items('mode'));
   const godmode = $derived(items('godmode'));
 
@@ -44,6 +45,7 @@
     <TechniqueGroup label="Transform" items={transform} onClick={handleClick} />
     <TechniqueGroup label="Mutate" items={mutate} onClick={handleClick} />
     <TechniqueGroup label="Classifier" items={classifier} onClick={handleClick} />
+    <TechniqueGroup label="Composite" items={composite} onClick={handleClick} />
     <TechniqueGroup label="Mode" items={mode} onClick={handleClick} />
     <TechniqueGroup label="Godmode" items={godmode} onClick={handleClick} />
   </div>

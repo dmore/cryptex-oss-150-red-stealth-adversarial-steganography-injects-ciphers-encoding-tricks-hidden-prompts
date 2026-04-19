@@ -1,6 +1,6 @@
 import type { ChatMessage } from '$lib/ai/types';
 
-export type TechniqueCategory = 'transform' | 'mutate' | 'classifier' | 'mode' | 'godmode';
+export type TechniqueCategory = 'transform' | 'mutate' | 'classifier' | 'mode' | 'godmode' | 'composite';
 
 export interface TechniqueContext {
   model?: string;

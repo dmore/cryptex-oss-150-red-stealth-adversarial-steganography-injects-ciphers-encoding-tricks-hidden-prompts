@@ -52,7 +52,7 @@
   const MAX_FILE_BYTES = 25 * 1024 * 1024;   // 25 MB per file
   const MAX_MSG_BYTES  = 50 * 1024 * 1024;   // 50 MB per message
 
-  // Only the 9 PromptCraft mutators are slash-completable
+  // Only mutator-category techniques are slash-completable
   const mutators = byCategory('mutate');
 
   // Synthetic slash entries (not registered Techniques)

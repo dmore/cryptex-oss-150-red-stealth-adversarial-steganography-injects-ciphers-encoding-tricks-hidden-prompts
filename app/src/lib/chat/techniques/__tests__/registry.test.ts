@@ -7,16 +7,33 @@ describe('technique registry', () => {
     expect(t.length).toBeGreaterThan(100); // we expect 162 but registry may filter
   });
 
-  it('contains exactly the 9 PromptCraft mutators', () => {
+  it('contains exactly the 14 PromptCraft mutators', () => {
     const m = byCategory('mutate');
     expect(m.map(x => x.id).sort()).toEqual(
-      ['compress', 'custom', 'expand', 'fragment', 'metaphor', 'multilingual', 'obfuscate', 'rephrase', 'roleplay'].sort()
+      [
+        'compress', 'custom', 'expand', 'fragment', 'metaphor', 'multilingual',
+        'obfuscate', 'rephrase', 'roleplay',
+        'red_team_persona', 'step_back', 'chain_of_verification',
+        'ctf_framing', 'rfc_style'
+      ].sort()
     );
   });
 
-  it('contains exactly the 9 Anti-Classifier techniques', () => {
+  it('contains exactly the 12 classifier techniques', () => {
     const c = byCategory('classifier');
-    expect(c.length).toBe(9);
+    expect(c.map((x) => x.id).sort()).toEqual(
+      [
+        'circumlocution', 'metonymy', 'semantic_decomposition', 'technical_register',
+        'academic_framing', 'homoglyph_character_substitution', 'temporal_displacement',
+        'perplexity_raise', 'structural_variation',
+        'lexical_rarity_injection', 'em_dash_interjection', 'sentence_length_oscillation'
+      ].sort()
+    );
+  });
+
+  it('contains 2 composite techniques', () => {
+    const comp = byCategory('composite');
+    expect(comp.map(x => x.id).sort()).toEqual(['grammar_constrained_output', 'layered_mutation']);
   });
 
   it('contains the 3 modes', () => {
@@ -59,8 +76,13 @@ describe('technique registry', () => {
     expect(c.every(x => x.local === false)).toBe(true);
   });
 
-  it('allTechniques total is >= 180 (transformers + 9 mutators + 9 classifier + 3 modes + 1 godmode)', () => {
+  it('all composite techniques have local=false', () => {
+    const comp = byCategory('composite');
+    expect(comp.every(x => x.local === false)).toBe(true);
+  });
+
+  it('allTechniques total is >= 185 (transformers + 14 mutators + 12 classifier + 2 composites + 3 modes + 1 godmode)', () => {
     // transformer count is ~159-162 depending on env; test just verifies sum is plausible
-    expect(allTechniques().length).toBeGreaterThanOrEqual(180);
+    expect(allTechniques().length).toBeGreaterThanOrEqual(185);
   });
 });

@@ -2,6 +2,7 @@ import type { Technique, TechniqueCategory } from './types';
 import { transformerTechniques } from './from-transformers';
 import { mutatorTechniques } from './from-mutators';
 import { classifierTechniques } from './from-classifier';
+import { compositeTechniques } from './from-composites';
 import { modes } from './modes';
 import { godmodes } from './godmode';
 
@@ -12,6 +13,7 @@ function build(): Technique[] {
     ...transformerTechniques(),
     ...mutatorTechniques(),
     ...classifierTechniques(),
+    ...compositeTechniques(),
     ...modes,
     ...godmodes
   ];
