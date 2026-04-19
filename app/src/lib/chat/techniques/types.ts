@@ -7,6 +7,7 @@ export interface TechniqueContext {
   callLLM: (req: { system?: string; user: string; temperature?: number }) => Promise<string>;
   chatHistory?: ChatMessage[];
   signal?: AbortSignal;
+  metadata?: Record<string, unknown>;
 }
 
 export interface TechniqueResult {

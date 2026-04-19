@@ -7,20 +7,26 @@ import { unwrap } from '$lib/ai/prompt-scaffold';
  */
 
 const LAYERED_CHAIN = ['academic_framing', 'perplexity_raise', 'structural_variation'];
+const MULTI_LAYER_CHAIN = ['hypothetical_world', 'refusal_suppression', 'prefix_injection'];
 
-async function layeredMutation(input: string, ctx: TechniqueContext): Promise<string> {
+async function runChain(chain: string[], input: string, ctx: TechniqueContext, label: string): Promise<string> {
   const { find } = await import('./registry');
   let current = input;
-  for (const id of LAYERED_CHAIN) {
+  for (const id of chain) {
     const t = find(id);
     if (!t) {
-      if (import.meta.env.DEV) console.warn(`[layered_mutation] technique '${id}' not found — skipping`);
+      if (import.meta.env.DEV) console.warn(`[${label}] technique '${id}' not found — skipping`);
       continue;
     }
     const r = await t.apply(current, ctx);
     current = r.output;
   }
   return current;
+}
+
+async function layeredMutation(input: string, ctx: TechniqueContext): Promise<string> {
+  const chain = (ctx as { metadata?: { chain?: string[] } }).metadata?.chain ?? LAYERED_CHAIN;
+  return runChain(chain, input, ctx, 'layered_mutation');
 }
 
 const GRAMMAR_PROMPT =
@@ -53,6 +59,17 @@ export function compositeTechniques(): Technique[] {
       apply: async (input: string, ctx: TechniqueContext) => {
         const raw = await ctx.callLLM({ system: GRAMMAR_PROMPT, user: input });
         return { output: unwrap(raw, 'json') };
+      }
+    },
+    {
+      id: 'multi_layer_attack',
+      name: 'Multi-layer attack',
+      description: 'Composes hypothetical_world → refusal_suppression → prefix_injection. Highest documented compliance lift across 2026 model families.',
+      category: 'composite' as const,
+      local: false,
+      apply: async (input: string, ctx: TechniqueContext) => {
+        const output = await runChain(MULTI_LAYER_CHAIN, input, ctx, 'multi_layer_attack');
+        return { output, metadata: { chain: MULTI_LAYER_CHAIN } };
       }
     }
   ];
