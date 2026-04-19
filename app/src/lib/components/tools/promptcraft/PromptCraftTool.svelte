@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getSystemPrompt, listPromptCraftTechniques } from './strategies';
+  import { applyTechniqueForVariant, listPromptCraftTechniques } from './strategies';
   import { tuneParams } from '$lib/ai/prompt-scaffold';
   import { chat, hasAnyKey as hasApiKey } from '$lib/ai/gateway';
   import { GatewayError as OpenRouterError } from '$lib/ai/types';
@@ -56,7 +56,12 @@
     errorMsg = '';
     lastError = null;
     loading = true;
-    const system = getSystemPrompt(s.strategy, s.customInstruction);
+    // applyTechniqueForVariant correctly handles both LLM-generative and
+    // local-template techniques. For local-template picks, it applies the
+    // template locally then sends only a variation-only system prompt so
+    // PromptCraft can generate variance without forcing the meta-LLM to
+    // re-evaluate template content from scratch.
+    const { system, user } = applyTechniqueForVariant(s.strategy, s.input, s.customInstruction);
     const n = Math.max(1, Math.min(10, s.count));
 
     // NOTE: reasoning_effort / thinking_level from tuneParams are not yet threaded through
@@ -70,7 +75,7 @@
         title: `Cryptex/PromptCraft/${s.strategy}-v2`,
         messages: [
           { role: 'system', content: system },
-          { role: 'user',   content: s.input }
+          { role: 'user',   content: user }
         ]
       })
     );

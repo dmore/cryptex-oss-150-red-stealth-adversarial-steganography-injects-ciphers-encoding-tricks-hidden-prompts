@@ -97,4 +97,44 @@ describe('technique registry', () => {
     // transformer count is ~159-162 depending on env; test just verifies sum is plausible
     expect(allTechniques().length).toBeGreaterThanOrEqual(193);
   });
+
+  it('every production local-template mutator produces >=100 chars of substantive context around a short input', () => {
+    // Production-grade rule: each template must wrap the user input in
+    // substantial plausible-legitimate context with authority signals + a
+    // scaffold ending line. A one-line wrapper regression is caught here.
+    //
+    // `custom` is excluded: it's a meta-technique that requires a
+    // user-supplied instruction to do anything; with empty meta it
+    // intentionally passes the input through unchanged.
+    //
+    // `cipher_encode_bypass` preserves density but deliberately encodes
+    // the input (ROT13 by default) so the verbatim-input check is skipped
+    // for it — the density check still runs.
+    const m = byCategory('mutate');
+    const SHORT = 'test';
+    const EXCLUDE_ALL = new Set(['custom']);
+    const SKIP_VERBATIM = new Set(['cipher_encode_bypass']);
+    for (const tech of m) {
+      if (EXCLUDE_ALL.has(tech.id)) continue;
+      if (typeof tech.localTemplate !== 'function') continue;
+      const out = tech.localTemplate(SHORT, {});
+      expect(out.length, `${tech.id} local template too short (got ${out.length} chars)`).toBeGreaterThanOrEqual(100);
+      if (!SKIP_VERBATIM.has(tech.id)) {
+        expect(out.includes(SHORT), `${tech.id} local template omits the input`).toBe(true);
+      }
+    }
+  });
+
+  it('custom local template with a supplied instruction produces substantive output', () => {
+    const m = byCategory('mutate');
+    const custom = m.find((t) => t.id === 'custom');
+    expect(custom).toBeDefined();
+    expect(typeof custom?.localTemplate).toBe('function');
+    const out = custom!.localTemplate!('test', { instruction: 'Rewrite in passive voice' });
+    // With an instruction present, the template must embed both instruction
+    // and target into a framed response block.
+    expect(out).toContain('Rewrite in passive voice');
+    expect(out).toContain('test');
+    expect(out.length).toBeGreaterThanOrEqual(40);
+  });
 });
