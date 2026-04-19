@@ -8,29 +8,37 @@ order: 2
 # FAQ
 
 **Where is my data stored?**
-In your browser. Inputs and outputs live in reactive memory for the tab.
-Favorites and your OpenRouter key live in `localStorage`. Nothing persists
-server-side — there is no server.
+In your browser. Chat history, Attack Chain traces, dataset rows, and
+attachments all live in IndexedDB (`cryptex-chat` database). Provider
+keys live in `localStorage`. Nothing is transmitted to a Cryptex
+server.
 
-**Can I use this for CTFs?**
-Yes. The layered-encoding decoder, Vigenère / Playfair / ADFGVX / Bifid
-families, and the Unicode catalog are all deliberately CTF-friendly. See the
-[layered encoding recipe](/guide/layered-encoding/).
+**Who can I use this against?**
+Systems you own or have explicit written authorization to test. That
+covers internal red-team engagements, bug bounty scopes that permit
+prompt-injection research, CTFs you are registered for, and models
+you host yourself. Out-of-scope targets are off-limits the same way
+any security tool is.
 
-**How do I trust it's BYOK?**
-The site is static — view source, inspect the network tab. The only outbound
-requests you'll see are to `openrouter.ai` when *you* hit a button, and the
-CSP blocks everything else by default.
+**Which providers work?**
+OpenRouter (recommended default), Anthropic direct, and any
+OpenAI-compatible endpoint. Named presets: OpenAI, Google Gemini
+(via OpenAI-compat), Groq, Together, Fireworks, DeepInfra, Cerebras,
+SambaNova. Plus a Custom endpoint picker for any other OpenAI-shape
+`/v1/chat/completions`. See [chat basics](/guide/chat-basics/) for
+the full matrix.
 
-**Does my OpenRouter key see the whole session?**
-No. Only the specific tool invocation (PromptCraft run, Translate call, etc.)
-goes through OpenRouter, and only with the text you pasted into that tool.
-Offline tools (Transform, Decode, Emoji, Fuzzer, …) never hit OpenRouter.
+**Does my key see the whole session?**
+Each provider only receives the specific turn routed to it. Switching
+models mid-chat routes subsequent turns through the new provider;
+historical turns do not replay through every provider.
 
-**How do I download my session?**
-Open the History drawer (clock icon in the header) and hit Export. You'll get
-a JSON file with every tool run in the current tab.
+**Can I export my data?**
+Yes. Per-chat **Export JSON** in the sidebar, or the **Dataset
+Inspector** at `/dataset` for cross-chat ShareGPT JSONL and raw
+JSONL downloads.
 
-**Is the CLI the same as the web app?**
-The Python CLI reuses the exact same 162 transformer modules via a Node
-bridge — one source of truth, three runtimes.
+**How do I trust it is BYOK?**
+The site is static. View source, inspect the network tab. The only
+outbound requests are the ones you make to the provider you
+configured. No Cryptex backend exists to send anything to.

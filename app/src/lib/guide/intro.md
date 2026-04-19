@@ -1,42 +1,39 @@
 ---
 title: Welcome
-description: What Cryptex is, who it's for, and how to use it.
+description: AI red-team research platform. BYOK, browser-only, built for security researchers.
 category: intro
 order: 1
 ---
 
-# Welcome to Cryptex
+# Cryptex
 
-Cryptex is an AI red-teamer's text lab. It ships 162 transforms, 13 focused tools,
-a universal decoder, a full chat playground, and a 35-technique Attack Chain —
-all running in your browser. There is no Cryptex server. There is no telemetry.
-The only network calls are the ones you make yourself, with your own BYOK keys.
-OpenRouter, Anthropic, OpenAI, Google Gemini, Groq, Together, Fireworks,
-DeepInfra, Cerebras, SambaNova, and any custom OpenAI-compatible endpoint
-all work direct from the browser — no proxy required since the CSP widening
-in 2026-04-19.
+Cryptex is an AI red-team research platform. The target audience is security
+researchers, red-teamers, and prompt engineers evaluating LLM robustness
+against adversarial text. Everything runs in the browser against your own
+provider keys.
 
-It exists because evaluating LLM robustness means feeding the model adversarial
-text and watching what happens. Cryptex is the workbench for that job.
+## Pillars
 
-## Quick start
+- **Chat + Attack Chain** — full multi-provider chat playground. 35 slash
+  techniques, composable Attack Chain with auto-retry, every run persisted
+  for dataset export. The hero surface of the app.
+- **Tools** — specialized workbenches. Transform (162 text transformers),
+  Decode (universal detector), PromptCraft (variant generation),
+  Anti-Classifier (detection-evasion rewrites), Translate (low-resource
+  multilingual bypass).
+- **Dataset** — every chat, every Attack Chain trace, every tool call
+  browsable and exportable as ShareGPT or raw JSONL.
 
-- **Transform tab** — pick any of 162 ciphers, encodings, or Unicode abuses. Encode, decode, chain, pin favorites.
-- **Decode tab** — paste a suspicious string, get ranked candidates with confidence scores and explanations.
-- **Chat playground** (optional, multi-provider BYOK) — full LLM chat with slash commands, attachments, and the Attack Chain for composable multi-layer technique pipelines.
-- **PromptCraft** (optional, multi-provider BYOK) — full technique registry (21 mutators + 3 composites) to generate structurally distinct prompt variants from a single seed.
+## Use it for
 
-## Tools at a glance
+- Evaluating refusal boundaries on a target model you own or have
+  authorization to test.
+- Generating prompt banks for automated eval harnesses.
+- Stress-testing content classifiers (AI-writing detectors,
+  moderation APIs, image-gen tokenizers).
+- Analyzing obfuscated traffic pulled from AI assistants.
+- CTF-style cipher puzzles where layered encodings need to be unwound.
 
-- [Transform](/guide/transform/) — the 162-transform registry.
-- [Decode](/guide/decode/) — ranked-candidate decoder.
-- [Emoji](/guide/emoji/) — variation-selector + Tag-block steganography.
-- [PromptCraft](/guide/promptcraft/) — AI prompt mutation.
-- [Anti-Classifier](/guide/anticlassifier/) — syntactic rewrites.
-
-## Recipes
-
-Worked examples in [layered encoding](/guide/layered-encoding/), a
-[jailbreak prompt bank](/guide/jailbreak-bank/), and a
-[Unicode evasion battery](/guide/unicode-evasion/). All intended for
-systems you're authorized to test.
+Start with [getting started](/guide/getting-started/). For technique depth
+jump straight to the [technique catalog](/guide/technique-catalog/). For
+attack strategy read [orchestrating jailbreaks](/guide/orchestrating-jailbreaks/).

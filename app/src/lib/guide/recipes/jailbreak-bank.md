@@ -1,49 +1,86 @@
 ---
 title: Jailbreak prompt bank
-description: From one seed to a 2000-row corpus in three stages.
+description: Compact index of jailbreak techniques and recipes in Cryptex.
 category: recipes
 order: 2
 ---
 
 # Jailbreak prompt bank
 
-Goal: a reproducible bank of structurally diverse jailbreak prompts from a
-single seed, ready for automated evaluation against a model you're authorized
-to test.
+One-line index of every adversarial technique in the platform. Full
+semantic explanation, examples, and reference links in the
+[technique catalog](/guide/technique-catalog/). Strategy — when to
+stack which — in [orchestrating jailbreaks](/guide/orchestrating-jailbreaks/).
+End-to-end worked chains in [attack chain recipes](/guide/attack-chain-recipes/).
 
-## Stage 1 — PromptCraft Obfuscate × 10
+## Framing techniques
 
-Paste your seed into PromptCraft. Strategy: **Obfuscate**. Variants: 10.
-Temperature: 0.9. Pick a capable model — a larger obfuscator produces more
-diverse rewrites than a tiny one.
+- [**academic_framing**](/guide/technique-catalog/) — peer-review preface with a plausible venue cite.
+- [**roleplay**](/guide/technique-catalog/) — named professional persona wrapper.
+- [**red_team_persona**](/guide/technique-catalog/) — SOC 2 Type II aligned engagement runbook.
+- [**ctf_framing**](/guide/technique-catalog/) — real CTF event design brief.
+- [**rfc_style**](/guide/technique-catalog/) — IETF-RFC technical specification.
+- [**hypothetical_world**](/guide/technique-catalog/) — fictional-novel character dialogue.
+- [**skeleton_key**](/guide/technique-catalog/) — institutional document reconstruction.
+- [**temporal_displacement**](/guide/technique-catalog/) — historical or counterfactual frame.
 
-One run, 10 distinct rewrites. Keep them all for now; cull in Stage 3.
+## Structural techniques
 
-## Stage 2 — Fuzzer × 200 per variant
+- [**step_back**](/guide/technique-catalog/) — derive governing principle first.
+- [**chain_of_verification**](/guide/technique-catalog/) — draft then verify in isolation.
+- [**prefix_injection**](/guide/technique-catalog/) — partially-written document to complete.
+- [**json_schema_coerce**](/guide/technique-catalog/) — strict schema with `answer_verified: true`.
+- [**in_context_compliance**](/guide/technique-catalog/) — many-shot priming (Anthropic 2024).
+- [**deep_inception**](/guide/technique-catalog/) — nested fictional frames.
+- [**refusal_suppression**](/guide/technique-catalog/) — continuation framing.
 
-Paste each of the 10 rewrites into the Fuzzer as a seed. Enable:
+## Obfuscation techniques
 
-- **zero-width insertion**
-- **casing jitter**
-- **homoglyph** (optional for harsher variants)
+- [**obfuscate**](/guide/technique-catalog/) — indirection via euphemism / metonymy.
+- [**payload_split**](/guide/technique-catalog/) — semantic A/B/C decomposition.
+- [**semantic_decomposition**](/guide/technique-catalog/) — physical / functional breakdown.
+- [**cipher_encode_bypass**](/guide/technique-catalog/) — ROT13 / Pigpen / Baconian / Tap / Atbash.
+- [**fragment**](/guide/technique-catalog/) — distribute across pseudo-documents.
+- [**multilingual**](/guide/technique-catalog/) — low-resource-language translation.
 
-Set variants to 200, seeded so you can reproduce the exact corpus later. Hit
-download — you get a `.txt` of 200 mutated rows per seed.
+## Rewriting techniques
 
-10 seeds × 200 variants = 2000 rows.
+- [**rephrase**](/guide/technique-catalog/) — surface-form variation.
+- [**circumlocution**](/guide/technique-catalog/) — descriptive substitution.
+- [**metonymy**](/guide/technique-catalog/) — related-concept substitution.
+- [**technical_register**](/guide/technique-catalog/) — scientific / medical / legal.
+- [**perplexity_raise**](/guide/technique-catalog/) — rarer synonyms, burstiness `>= 0.65`.
+- [**structural_variation**](/guide/technique-catalog/) — mixed clause types.
+- [**lexical_rarity_injection**](/guide/technique-catalog/) — Zipf-rank `<= 3.5`.
+- [**em_dash_interjection**](/guide/technique-catalog/) — cadence shift.
+- [**sentence_length_oscillation**](/guide/technique-catalog/) — short/medium/long variance.
 
-## Stage 3 — Cull and label
+## Multi-turn technique
 
-Feed the 2000 rows through your evaluation harness. Label on target response,
-not surface form. Keep the rows that move the needle; discard the rows that
-don't. Re-seed Stage 1 from anything interesting that survives.
+- [**crescendo**](/guide/technique-catalog/) — benign -> drift -> target across turns.
+
+## Composite recipes
+
+- [**layered_mutation**](/guide/technique-catalog/) — `academic_framing` -> `perplexity_raise` -> `structural_variation`. AI-writing-detection lift stack.
+- [**multi_layer_attack**](/guide/technique-catalog/) — `roleplay` -> `hypothetical_world` -> `prefix_injection`. Literary-cover lift stack.
+- [**grammar_constrained_output**](/guide/technique-catalog/) — strict JSON with tag enums and audit trail.
+
+## End-to-end recipes
+
+- [**Code extraction**](/guide/attack-chain-recipes/) — `academic_framing` -> `roleplay` -> `prefix_injection` -> `json_schema_coerce`.
+- [**Policy probe**](/guide/attack-chain-recipes/) — `roleplay (IR analyst)` -> `step_back` -> `payload_split`.
+- [**Data exfiltration research**](/guide/attack-chain-recipes/) — `semantic_decomposition` -> `cipher_encode_bypass` -> `payload_split`.
+- [**Refusal recovery walkthrough**](/guide/attack-chain-recipes/) — demonstrates auto-retry + fallback chain.
+
+## Variant-bank pipeline
+
+For corpus-generation work rather than single-chain research:
 
 ```
-seed (1)  →  PromptCraft Obfuscate × 10
-         →  Fuzzer × 200 each (zero-width + casing)
-         →  ~2000-row eval corpus
+seed prompt  ->  PromptCraft (obfuscate, N=10, temp 1.2)
+             ->  Fuzzer (zero-width + casing, 200 variants each)
+             ->  2000-row eval corpus
 ```
 
-> Authorized use only. This recipe is for evaluating systems you own or have
-> written permission to test. Prompt banks generated with this pipeline are
-> research artifacts — treat them like any other sensitive dataset.
+See [PromptCraft](/guide/promptcraft/) for the workflow. Authorized
+use only.

@@ -1,85 +1,104 @@
 ---
 title: Anti-Classifier
-description: XML-scaffolded rewrites across 12 classifier-targeting techniques with structured JSON output.
+description: AI-detection classifier evasion through 12 surface-feature-targeted rewrites.
 category: tools
 order: 5
 ---
 
 # Anti-Classifier
 
-Anti-Classifier produces ranked rewrites of a seed string, each
-targeted at the surface features content classifiers key on. The goal
-is to hold semantics constant while varying surface form — exactly the
-kind of perturbation content classifiers are supposed to be robust to,
-and often aren't.
+Anti-Classifier produces ranked rewrites of a seed string, each targeted
+at the surface features content classifiers key on. The goal is to hold
+semantics constant while varying surface form — exactly the perturbation
+content classifiers are supposed to be robust to, and often are not.
 
-The system prompt is a 2026-current XML-scaffolded role definition;
-output is strict JSON inside `<json>` tags so the app can render the
-ranked rewrites directly. The prompt lives in
-`app/src/lib/components/tools/anticlassifier/prompt.ts`.
+System prompt in `app/src/lib/components/tools/anticlassifier/prompt.ts`.
+Output is strict JSON wrapped in `<json>` tags.
 
-## How it works
+## What classifiers key on
 
-You paste text in. The system prompt frames the request as linguistic
-red-team research under a responsible-disclosure framework, lists 12
-named rewrite techniques with concrete 2026-corpus-matched examples,
-and requires the model to emit a single JSON object with two keys:
+| Detector family | Primary signal | Secondary signal |
+| --- | --- | --- |
+| GPTZero v3 | Perplexity (word frequency) | Burstiness (clause-length variance) |
+| Originality | Perplexity | N-gram repetition |
+| Turnitin v4 | Burstiness | Syntactic uniformity |
+| OpenAI moderation | Token triggers | Category n-grams |
+| Anthropic classifier | Token triggers + semantic category | - |
+| DALL-E / Midjourney / SD4 | Prompt n-grams | Semantic category clustering |
 
-- `analysis` — the trigger terms identified in the input, and the
-  classifier family or families that would fire on them.
-- `rewrites` — exactly three ranked candidates, from conservative
-  (lowest semantic drift) to aggressive (highest filter-evasion).
+Each Anti-Classifier technique is tuned against one or more of these
+axes. Picking the right technique stack depends on which family you are
+evaluating.
 
-Each rewrite entry reports: rank, label (`conservative` /
-`balanced` / `aggressive`), text, techniques used, estimated
-evasion score (`low` / `medium` / `high`), and a one-sentence note on
-what a careful reader would still recover.
+## The 12 techniques
 
-## The twelve techniques
+11 mirror classifier rewrites in the [technique catalog](/guide/technique-catalog/#classifier-rewrites);
+`homoglyph_substitution` is specific to Anti-Classifier.
 
-The system prompt enumerates 12 techniques with concrete rewrite
-examples. Eleven of them mirror the 11 classifier rewrites in the
-[technique catalog](/guide/techniques/); one (`homoglyph_substitution`)
-is specific to Anti-Classifier and targets image-gen tokenizers:
+### Token-trigger evasion (targets: moderation APIs, image-gen prompts)
 
-- `circumlocution` — direct terms become descriptive phrases.
-- `metonymy` — related-concept substitution.
-- `semantic_decomposition` — break concepts into physical or
-  functional components.
-- `technical_register` — scientific, medical, or legal register.
-- `academic_framing` — peer-review preface.
-- `homoglyph_substitution` — Latin to visually-identical non-Latin
-  codepoints. Effective against image-gen tokenizers; less effective
-  on modern text LLMs.
-- `temporal_displacement` — historical or counterfactual frame.
-- `perplexity_raise` — rarer synonyms, burstiness ≥0.65, perplexity
-  ≥50.
-- `structural_variation` — mixed clause types, em-dashes,
+- **`circumlocution`** — direct terms become descriptive phrases.
+- **`metonymy`** — substitute closely related concepts (the Pentagon
+  for the defense establishment).
+- **`semantic_decomposition`** — break concepts into physical or
+  functional components (explosion -> rapid exothermic gas expansion).
+- **`technical_register`** — shift to scientific / medical / legal
+  (kill -> induce cessation of biological processes).
+- **`homoglyph_substitution`** — Latin characters replaced with
+  visually-identical non-Latin codepoints. Primarily effective against
+  image-gen tokenizers; less effective on modern text LLMs that NFKC
+  normalize.
+
+### Perplexity / burstiness evasion (targets: GPTZero, Originality, Turnitin)
+
+- **`perplexity_raise`** — rarer synonyms; target burstiness `>= 0.65`
+  and perplexity `>= 50`. Single strongest lift against AI-writing
+  detectors.
+- **`structural_variation`** — mix clause types (declarative,
+  interrogative, imperative, fragment). Em-dashes, semicolons,
   parentheticals.
-- `lexical_rarity_injection` — aggressive Zipf-rank ≤3.5 synonyms
-  targeting GPTZero v3.
-- `em_dash_interjection` — rhetorical pivots that break uniform AI
-  cadence.
-- `sentence_length_oscillation` — deliberate short ↔ long variance.
+- **`lexical_rarity_injection`** — aggressive Zipf-rank `<= 3.5` synonym
+  replacement. Targets GPTZero v3 specifically.
+- **`em_dash_interjection`** — insert em-dashes, parentheticals,
+  rhetorical pivots. Cheap cadence shift, no semantic change.
+- **`sentence_length_oscillation`** — alternate short (`< 8` words),
+  medium (12-20), long (`> 25`), fragments. Burstiness target.
 
-Layering several techniques is more robust than applying just one; the
-system prompt instructs the model to combine them and report the
-combination per rewrite.
+### Frame evasion (targets: context-sensitive classifiers)
 
-## Classifier targets
+- **`academic_framing`** — peer-review journal preface with a plausible
+  venue citation.
+- **`temporal_displacement`** — historical or counterfactual frame
+  (1742 Royal Society; alternative-history 2047).
 
-The analysis section of the output reports which classifier families the
-input would fire on. The prompt enumerates: `dalle`, `midjourney`,
-`sd4`, `openai_moderation`, `anthropic_classifier`, `gptzero`,
-`originality`, `turnitin`, and `other`. Picking the right technique
-stack depends on which classifier you're evaluating — AI-writing
-detectors care about perplexity and burstiness, image-gen safety
-classifiers care about semantic category clustering, token-trigger
-moderation APIs care about specific n-grams.
+## What the classifier sees — before / after
+
+**Before (`perplexity_raise`):**
+```
+This is important. The model works well. It is fast. The results are accurate.
+```
+Flat: burstiness ~0.25, perplexity ~18, mean clause length 5.0 words.
+GPTZero v3 score: **AI-generated, 94% confidence**.
+
+**After:**
+```
+This matters — profoundly. The model performs ably across the evaluated
+benchmarks, posting figures that would have seemed implausible a decade
+ago. Fast, too. The numerical accuracy is, if not quite state of the art,
+exemplary of what the architecture can deliver in the presence of
+adequate compute.
+```
+Burstiness ~0.72, perplexity ~58, mean clause length ~13 with variance.
+GPTZero v3 score: **Mixed / human likely**.
+
+Layering two techniques (`perplexity_raise` + `structural_variation`)
+typically shifts GPTZero v3 scores from **AI-generated high confidence**
+to **Mixed**. Three-layer (`layered_mutation` composite) typically
+shifts to **Human-written** on short-to-medium inputs.
 
 ## Output shape
 
-The model emits a single JSON object wrapped in `<json>` tags:
+Exactly three ranked rewrites per call, conservative -> aggressive:
 
 ```json
 {
@@ -100,28 +119,42 @@ The model emits a single JSON object wrapped in `<json>` tags:
 }
 ```
 
-Exactly three rewrites are produced per call. Temperature, max
-tokens, and model are all configurable. Click again for another draw.
+`evasion_score` is a self-report of how aggressively the rewrite
+departed from the seed. `semantic_preservation_note` flags anything a
+careful reader might still recover.
+
+## Classifier targets enum
+
+The prompt enumerates: `dalle`, `midjourney`, `sd4`, `openai_moderation`,
+`anthropic_classifier`, `gptzero`, `originality`, `turnitin`, `other`.
+The model reports which classifier families would fire on the input,
+which informs the technique stack it picks.
 
 ## Non-negotiable declines
 
-The system prompt carries an honest category decline: for CSAM,
-bioweapon synthesis, and similar non-negotiable categories, the model
-emits the JSON with an empty `rewrites` array and
-`"declined_category"` in `analysis.classifier_targets`. The tool
-surfaces this as a visible declined state rather than a silent empty
-result.
+For categories the prompt explicitly marks non-negotiable (CSAM,
+bioweapon synthesis), the model emits JSON with an empty `rewrites`
+array and `declined_category` in `analysis.classifier_targets`. The
+tool surfaces this as a visible declined state, not a silent empty.
 
-## Good pairings
+## Pairings
 
 - Feed the aggressive rewrite back into Anti-Classifier for round-2
   paraphrase depth.
-- Pipe through Translate → English → Anti-Classifier for broader
-  diversity.
-- Pair with the Fuzzer to add character-level noise on top of
+- Route through [Translate](/guide/translate/) -> English -> Anti-Classifier
+  for cross-lingual diversity.
+- Pair with the Fuzzer for character-level noise on top of
   sentence-level rewrites.
-- For multi-technique composition, use the [Attack Chain](/guide/attack-chain/)
-  with `academic_framing` + `perplexity_raise` + `structural_variation`
-  (the `layered_mutation` composite).
+- For multi-technique composition use the [Attack Chain](/guide/attack-chain/)
+  with the `layered_mutation` composite (`academic_framing` ->
+  `perplexity_raise` -> `structural_variation`).
+
+## Reference
+
+- [GPTZero methodology](https://gptzero.me/technology) — perplexity +
+  burstiness scoring.
+- Academic evaluations of AI-detection robustness have repeatedly
+  surfaced that perplexity-raising paraphrase defeats top detectors;
+  see the survey at [Sadasivan et al., 2023](https://arxiv.org/abs/2303.11156).
 
 Use on classifiers you own or are authorized to evaluate.
