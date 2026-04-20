@@ -6,6 +6,7 @@
   import ToastHost from '$lib/components/shell/ToastHost.svelte';
   import HistoryDrawer from '$lib/components/shell/HistoryDrawer.svelte';
   import ConsentBanner from '$lib/ads/ConsentBanner.svelte';
+  import UpgradeModal from '$lib/components/billing/UpgradeModal.svelte';
   import { apply as applyTheme, watchSystemTheme } from '$lib/stores/theme.svelte';
   import { runLegacyMigration } from '$lib/stores/_migrate';
   import { initCatalogStore } from '$lib/ai/catalog.svelte';
@@ -75,5 +76,6 @@
 
   <HistoryDrawer open={historyOpen} onclose={() => (historyOpen = false)} />
   <ConsentBanner />
+  <UpgradeModal />
   <ToastHost />
 </div>
