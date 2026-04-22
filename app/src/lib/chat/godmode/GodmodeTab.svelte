@@ -8,6 +8,7 @@
   import { saveAsTechnique } from './synthesizer-client';
   import CandidateRow from './CandidateRow.svelte';
   import WinnerCard from './WinnerCard.svelte';
+  import GodmodeHistoryPanel from './GodmodeHistoryPanel.svelte';
   import { injectGodmodeTurn } from '$lib/chat/dispatch';
   import { repo } from '$lib/chat/repo';
   import { session } from '$lib/auth/session.svelte';
@@ -383,21 +384,12 @@
     />
   {/if}
 
-  <!-- History — placeholder until Task 9 lands GodmodeHistoryPanel -->
   {#if history.length > 0}
-    <details class="rounded-md border border-border/40 p-2 text-xs">
-      <summary class="cursor-pointer text-muted-foreground">History ({history.length})</summary>
-      <ul class="mt-2 flex flex-col gap-1">
-        {#each history as r (r.id)}
-          <li class="rounded border border-border/40 px-2 py-1">
-            <span class="text-[10px] text-muted-foreground">{new Date(r.createdAt).toLocaleString()}</span>
-            <span class="ml-2">{r.task.slice(0, 60)}</span>
-            <button type="button" onclick={() => promoteHistory(r, r.winner)} class="ml-2 text-[10px] underline">send</button>
-            <button type="button" onclick={() => deleteRun(r.id)} class="ml-2 text-[10px] text-destructive">delete</button>
-          </li>
-        {/each}
-      </ul>
-    </details>
+    <GodmodeHistoryPanel
+      runs={history}
+      onPromote={promoteHistory}
+      onDelete={deleteRun}
+    />
   {/if}
 
   <!-- Save as custom technique — unchanged from panel.svelte -->
