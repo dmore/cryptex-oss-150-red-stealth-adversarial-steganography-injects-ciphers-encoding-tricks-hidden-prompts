@@ -52,13 +52,14 @@
         settings: {
           ...base,
           attackChainConfig: {
-            input: base.attackChainConfig?.input ?? '',
-            layers: base.attackChainConfig?.layers ?? ['', ''],
-            layerParams: base.attackChainConfig?.layerParams ?? [{}, {}],
-            layerOutputEdits: base.attackChainConfig?.layerOutputEdits ?? [null, null],
-            executeEnabled: base.attackChainConfig?.executeEnabled ?? true,
-            finalSystemPrompt: base.attackChainConfig?.finalSystemPrompt ?? '',
-            autoRetryEnabled: base.attackChainConfig?.autoRetryEnabled ?? true,
+            input: '',
+            layers: ['', ''],
+            layerParams: [{}, {}],
+            layerOutputEdits: [null, null],
+            executeEnabled: true,
+            finalSystemPrompt: '',
+            autoRetryEnabled: true,
+            ...(base.attackChainConfig ?? {}),
             modelQualifiedId: v
           }
         }
@@ -76,9 +77,10 @@
         settings: {
           ...base,
           godmodeConfig: {
-            task: base.godmodeConfig?.task ?? '',
-            K: base.godmodeConfig?.K ?? 6,
-            saveForm: base.godmodeConfig?.saveForm ?? { expanded: false, name: '', decompose: false },
+            task: '',
+            K: 6,
+            saveForm: { expanded: false, name: '', decompose: false },
+            ...(base.godmodeConfig ?? {}),
             modelQualifiedId: v
           }
         }
@@ -90,7 +92,7 @@
 </script>
 
 <aside
-  class="flex h-full w-[440px] shrink-0 flex-col border-l border-border/50 bg-card/30 backdrop-blur-sm"
+  class="relative flex h-full w-[440px] shrink-0 flex-col border-l border-border/50 bg-card/30 backdrop-blur-sm"
   aria-label="Attack workspace"
 >
   <!-- Sticky header — tab strip + close -->
