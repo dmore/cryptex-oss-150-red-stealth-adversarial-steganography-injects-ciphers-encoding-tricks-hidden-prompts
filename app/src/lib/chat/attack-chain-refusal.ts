@@ -59,6 +59,21 @@ export function detectRefusal(text: string): { detected: boolean; reason?: strin
   return { detected: false };
 }
 
+/**
+ * The 5 canonical jailbreak-fingerprint phrases from commit 033328c.
+ * These are known to trigger refusal on 2026 SOTA models — the trigger
+ * BECOMES the defense. Subsystem B's prompt-synthesizer detects and
+ * auto-rewrites these. The set is deliberately narrow; broad matching
+ * would over-rewrite benign security research language.
+ */
+export const SHIBBOLETH_PATTERNS: readonly RegExp[] = Object.freeze([
+  /research mode (enabled|active|on)/i,
+  /\bDAN\b|you are (now )?DAN/i,
+  /developer override (activated|confirmed|engaged)/i,
+  /unrestricted (research|developer) mode/i,
+  /ignore (your |the )?(ethical|safety|content) (constraints|restrictions|policies|guidelines)/i,
+]);
+
 // ---------------------------------------------------------------------------
 // Godmode Engine v2 — tiered response scoring
 // ---------------------------------------------------------------------------
