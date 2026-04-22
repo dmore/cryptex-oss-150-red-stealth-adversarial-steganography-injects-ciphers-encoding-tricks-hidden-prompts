@@ -44,6 +44,24 @@ Recommendation: **(a)**, paired with F1.1 so the gate is meaningful.
 
 ---
 
+### F1.3 Production-grade drawer UI polish
+
+The F1 drawer (committed in `fab254a`) wires the panel correctly but is dev-grade visually: raw textarea + plain text input + JSON-dump event log. For shippable UX the drawer needs:
+
+- **Model picker instead of text input** — reuse `ModelPickerV2.svelte` (already used by ChatHeader) with a "Godmode target model" scope + `cryptex.godmode.recentModels` recents key.
+- **Event list → structured progress view** — per-candidate row showing DNA summary (mutator/classifier/wrapper IDs), running spinner → score tier badge → latency ms. `plan` / `error` / `done` events render as status strip, not dumped JSON.
+- **Winner card** — dedicated block at the bottom: tier badge, response rendered with markdown + copy-to-clipboard button + "Send to composer" action (dispatches the existing `composer:insert` custom event).
+- **K pill styling** — match the existing `ModePills.svelte` pattern in the composer (rounded, primary accent when selected).
+- **Empty state** — while `events.length === 0 && !running`, show a brief explainer: "Type a task, pick K, run. The engine races N framings and returns the strongest response."
+- **Keyboard shortcut** — `Cmd/Ctrl+Enter` in the task textarea triggers Run.
+- **Status header** — while running, the sticky header shows a progress pill (e.g. `3 running · 1 scored`) so users know the request is alive even if events are slow.
+
+**Scope:** UI-only inside `panel.svelte` + potentially extracted into smaller components (`CandidateRow.svelte`, `WinnerCard.svelte`). No changes to engine, types, or event contract.
+
+**Effort:** ~1 day. Land as its own commit on top of F1 for a cleaner review diff.
+
+---
+
 ## Phase F2 — Type-drift cleanup (priority: medium, ~half day)
 
 Goal: eliminate the two "type redeclared on both sides" seams before Subsystem B extends them.
@@ -141,13 +159,14 @@ const TIER_CUTOFFS = { refusal: 0.2, evasive: 0.4, partial: 0.6, substantive: 0.
 
 | # | Phase | Effort | Depends on | Triggering condition |
 |---|---|---|---|---|
-| 1 | F1 (UX unblock) | ~1 day | — | Required for user-facing launch |
-| 2 | F2 (type cleanup) | ~half day | Subsystem A merged | Before Subsystem B extends types |
-| 3 | F3.1 (OpenRouter) | ~1 day | F2 | First paying customer asks for a non-Claude model |
-| 4 | F3.2 (OAI-compat) | ~1 day | F3.1 | Groq/Together demand |
-| 5 | F5 (scorer constants) | ~2 hours | Smoke data | Tuning-driven |
-| 6 | F4.1 (round-robin) | ~1 hour | Metrics | 429 rate > 1% |
-| 7 | F4.2 (memoization) | ~2 hours | Metrics | p99 > 200ms |
+| 1 | F1.1/F1.2 (UX unblock) | ~1 day | — | Required for user-facing launch — **LANDED in `fab254a`** |
+| 2 | F1.3 (drawer UI polish) | ~1 day | F1.1/1.2 | Before external users see Godmode |
+| 3 | F2 (type cleanup) | ~half day | Subsystem A merged | Before Subsystem B extends types |
+| 4 | F3.1 (OpenRouter) | ~1 day | F2 | First paying customer asks for a non-Claude model |
+| 5 | F3.2 (OAI-compat) | ~1 day | F3.1 | Groq/Together demand |
+| 6 | F5 (scorer constants) | ~2 hours | Smoke data | Tuning-driven |
+| 7 | F4.1 (round-robin) | ~1 hour | Metrics | 429 rate > 1% |
+| 8 | F4.2 (memoization) | ~2 hours | Metrics | p99 > 200ms |
 
 **Net:** phases 1–4 are the "launch path" (~3.5 days). 5–7 are data-driven tuning that happen when signals warrant.
 
