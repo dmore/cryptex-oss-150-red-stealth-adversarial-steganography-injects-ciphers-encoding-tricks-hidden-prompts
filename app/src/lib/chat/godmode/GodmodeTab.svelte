@@ -318,6 +318,10 @@
   // Dev bypass: when PUBLIC_GODMODE_SKIP_AUTH=true, treat the tab as signed-in
   // so the UI stays fully interactive while the server accepts anon requests.
   const GODMODE_SKIP_AUTH = import.meta.env.PUBLIC_GODMODE_SKIP_AUTH === 'true';
+  // When Supabase URL/key aren't configured, the whole auth stack is a no-op
+  // and sign-in buttons only ever throw "Auth not enabled". Detect that state
+  // so the UI can explain it clearly instead of looking broken.
+  const AUTH_CONFIGURED = !!(import.meta.env.PUBLIC_SUPABASE_URL && import.meta.env.PUBLIC_SUPABASE_ANON_KEY);
   const isSignedIn = $derived(
     GODMODE_SKIP_AUTH ||
     (session.supabaseSession !== null && !!session.supabaseSession?.access_token)
@@ -326,12 +330,20 @@
   let authLoading = $state(false);
   let authError = $state<string | null>(null);
   async function signInGoogle() {
+    if (!AUTH_CONFIGURED) {
+      authError = 'Supabase auth is not configured in this build. Set PUBLIC_SUPABASE_URL + PUBLIC_SUPABASE_ANON_KEY, or enable PUBLIC_GODMODE_SKIP_AUTH=true for dev.';
+      return;
+    }
     authLoading = true;
     authError = null;
     try { await session.signInWithGoogle(); }
     catch (e) { authError = (e as Error).message; authLoading = false; }
   }
   async function signInGitHub() {
+    if (!AUTH_CONFIGURED) {
+      authError = 'Supabase auth is not configured in this build. Set PUBLIC_SUPABASE_URL + PUBLIC_SUPABASE_ANON_KEY, or enable PUBLIC_GODMODE_SKIP_AUTH=true for dev.';
+      return;
+    }
     authLoading = true;
     authError = null;
     try { await session.signInWithGitHub(); }
@@ -341,31 +353,45 @@
 
 <div class="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-4">
   {#if !isSignedIn}
-    <!-- Sign-in required — Godmode hits a paid edge function. -->
+    <!-- Auth unavailable — Godmode hits a paid edge function. Two sub-states:
+         (a) Supabase configured → show sign-in buttons
+         (b) Supabase not configured → explain + link to dev-bypass flag -->
     <div class="rounded-md border border-primary/30 bg-primary/5 p-4 text-xs">
       <div class="mb-2 flex items-center gap-2">
-        <span class="text-sm font-semibold text-foreground">Sign in to use Godmode</span>
+        <span class="text-sm font-semibold text-foreground">
+          {AUTH_CONFIGURED ? 'Sign in to use Godmode' : 'Godmode unavailable in this build'}
+        </span>
       </div>
-      <p class="mb-3 text-muted-foreground leading-relaxed">
-        Godmode races multiple prompt framings server-side and returns the strongest response. It needs an authenticated session because the engine runs on our edge function with server-vaulted API keys.
-      </p>
-      <div class="flex flex-col gap-2">
-        <button
-          type="button"
-          onclick={signInGoogle}
-          disabled={authLoading}
-          class="flex h-8 w-full items-center justify-center gap-2 rounded-md border border-border bg-card text-xs hover:bg-muted disabled:opacity-50"
-        >Continue with Google</button>
-        <button
-          type="button"
-          onclick={signInGitHub}
-          disabled={authLoading}
-          class="flex h-8 w-full items-center justify-center gap-2 rounded-md border border-border bg-card text-xs hover:bg-muted disabled:opacity-50"
-        >Continue with GitHub</button>
-      </div>
+      {#if AUTH_CONFIGURED}
+        <p class="mb-3 text-muted-foreground leading-relaxed">
+          Godmode races multiple prompt framings server-side and returns the strongest response. It needs an authenticated session because the engine runs on our edge function with server-vaulted API keys.
+        </p>
+        <div class="flex flex-col gap-2">
+          <button
+            type="button"
+            onclick={signInGoogle}
+            disabled={authLoading}
+            class="flex h-8 w-full items-center justify-center gap-2 rounded-md border border-border bg-card text-xs hover:bg-muted disabled:opacity-50"
+          >Continue with Google</button>
+          <button
+            type="button"
+            onclick={signInGitHub}
+            disabled={authLoading}
+            class="flex h-8 w-full items-center justify-center gap-2 rounded-md border border-border bg-card text-xs hover:bg-muted disabled:opacity-50"
+          >Continue with GitHub</button>
+        </div>
+      {:else}
+        <p class="mb-3 text-muted-foreground leading-relaxed">
+          Supabase isn't configured for this build — sign-in is disabled. Two ways forward:
+        </p>
+        <ul class="mb-3 space-y-1 text-muted-foreground">
+          <li>• <strong>Local dev</strong>: set <code class="rounded bg-muted/40 px-1 py-0.5 font-mono text-[10px]">PUBLIC_GODMODE_SKIP_AUTH=true</code> in <code class="rounded bg-muted/40 px-1 py-0.5 font-mono text-[10px]">.env.local</code> and also set <code class="rounded bg-muted/40 px-1 py-0.5 font-mono text-[10px]">GODMODE_SKIP_AUTH=true</code> on the edge function.</li>
+          <li>• <strong>Full prod path</strong>: set <code class="rounded bg-muted/40 px-1 py-0.5 font-mono text-[10px]">PUBLIC_SUPABASE_URL</code>, <code class="rounded bg-muted/40 px-1 py-0.5 font-mono text-[10px]">PUBLIC_SUPABASE_ANON_KEY</code>, and <code class="rounded bg-muted/40 px-1 py-0.5 font-mono text-[10px]">VITE_AUTH_ENABLED=true</code>.</li>
+        </ul>
+      {/if}
       {#if authError}<p class="mt-2 text-[11px] text-destructive">{authError}</p>{/if}
       <p class="mt-3 text-[10px] text-muted-foreground">
-        Chain tab works without sign-in — all local transforms + your own API keys.
+        Chain tab works without any auth — all local transforms + your own API keys.
       </p>
     </div>
   {:else if candidates.length === 0 && !running && history.length === 0 && !runError}

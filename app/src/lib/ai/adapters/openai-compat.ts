@@ -20,6 +20,15 @@ function needsCompletionTokensRewrite(modelId: unknown): boolean {
   return typeof modelId === 'string' && REASONING_MODEL_RE.test(modelId);
 }
 
+/**
+ * Reasoning + GPT-5 models budget BOTH internal reasoning tokens and visible
+ * output tokens against max_completion_tokens. The app's default cap (4096)
+ * is too small — models often spend the entire budget on reasoning and emit
+ * zero visible output ("empty assistant bubble" bug). Raise the floor to
+ * something big enough for real responses; user can override explicitly.
+ */
+const REASONING_MIN_BUDGET = 32000;
+
 async function patchedFetch(
   input: string | URL | Request,
   init?: RequestInit
@@ -27,12 +36,28 @@ async function patchedFetch(
   if (init?.method === 'POST' && typeof init.body === 'string') {
     try {
       const body = JSON.parse(init.body);
-      if (needsCompletionTokensRewrite(body?.model) && 'max_tokens' in body) {
-        body.max_completion_tokens = body.max_tokens;
-        delete body.max_tokens;
-        // OpenAI reasoning models also reject `temperature` overrides — keep
-        // only if strictly 1 (the supported value). Safer to omit.
+      if (needsCompletionTokensRewrite(body?.model)) {
+        if ('max_tokens' in body) {
+          body.max_completion_tokens = body.max_tokens;
+          delete body.max_tokens;
+        }
+        // Raise the floor so the model has room to emit visible output after
+        // its internal reasoning. If the caller already asked for more, keep
+        // their number.
+        if (typeof body.max_completion_tokens !== 'number' || body.max_completion_tokens < REASONING_MIN_BUDGET) {
+          body.max_completion_tokens = REASONING_MIN_BUDGET;
+        }
+        // Strip every param OpenAI reasoning models reject outright. Leaving
+        // them sends the request through, but OpenAI 400s with "unsupported
+        // parameter" OR (worse) silently ignores them + returns empty output.
+        // Only `temperature: 1` is valid; strip any other value.
         if ('temperature' in body && body.temperature !== 1) delete body.temperature;
+        delete body.top_p;
+        delete body.presence_penalty;
+        delete body.frequency_penalty;
+        delete body.logit_bias;
+        delete body.logprobs;
+        delete body.top_logprobs;
         init = { ...init, body: JSON.stringify(body) };
       }
     } catch {

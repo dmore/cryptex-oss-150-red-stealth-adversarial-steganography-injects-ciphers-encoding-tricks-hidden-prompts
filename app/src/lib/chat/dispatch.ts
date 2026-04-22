@@ -471,7 +471,22 @@ export async function sendTurn(
     return;
   }
 
-  // 6) Persist final assistant message after loop completes
+  // 6) Guard empty completions. If the provider returned zero visible text
+  //    AND no tool calls, DO NOT save an empty bubble. This happens most
+  //    commonly on OpenAI reasoning / GPT-5 models when max_completion_tokens
+  //    is too small — the entire budget goes to internal reasoning and no
+  //    output tokens remain. Surface an explicit error so the user knows to
+  //    raise the cap or switch models instead of seeing a silent blank reply.
+  if (!accumulatedText && allToolCallLogs.length === 0) {
+    const truncatedByLength = finalFinishReason === 'length';
+    const detail = truncatedByLength
+      ? 'Model spent its token budget without emitting visible output. For reasoning models (o-series, gpt-5) raise max_completion_tokens.'
+      : `Model returned empty content (finish reason: ${finalFinishReason ?? 'unknown'}). Check model id, API key, and provider settings.`;
+    hooks.onError?.(new Error(detail));
+    return;
+  }
+
+  // 7) Persist final assistant message after loop completes
   const asstMsg = await repo.saveMessage({
     chatId: chat.id,
     role: 'assistant',
