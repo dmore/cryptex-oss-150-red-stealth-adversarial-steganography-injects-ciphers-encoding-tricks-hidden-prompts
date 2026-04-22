@@ -113,10 +113,20 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return new Response('method not allowed', { status: 405, headers: corsHeaders });
 
-  const u = await requirePaid(req);
-  if (u instanceof Response) return u;
+  // DEV bypass — set GODMODE_SKIP_AUTH=true in the edge function env to allow
+  // anyone with the anon key to exercise the engine. When false (default), keep
+  // the production paid-tier gate. Revert this flag before shipping.
+  const skipAuth = Deno.env.get('GODMODE_SKIP_AUTH') === 'true';
+  let userId: string;
+  if (skipAuth) {
+    userId = 'dev-bypass';
+  } else {
+    const u = await requirePaid(req);
+    if (u instanceof Response) return u;
+    userId = u.id;
+  }
 
-  if (!rateLimit(`godmode:engine:${u.id}`, 60, 60_000)) {
+  if (!rateLimit(`godmode:engine:${userId}`, 60, 60_000)) {
     return new Response('Too many requests', { status: 429, headers: corsHeaders });
   }
 
@@ -174,7 +184,7 @@ Deno.serve(async (req) => {
           task: body.task as string,
           K: K as 3 | 6 | 12,
           model: body.model as string,
-          userId: u.id,
+          userId,
           memory,
           adapter,
           score,

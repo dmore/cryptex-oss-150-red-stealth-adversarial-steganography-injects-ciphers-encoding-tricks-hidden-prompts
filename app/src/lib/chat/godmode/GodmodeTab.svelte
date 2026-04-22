@@ -116,7 +116,14 @@
     const started = Date.now();
     controller = new AbortController();
     try {
-      const jwt = session.supabaseSession?.access_token;
+      // Dev bypass — when PUBLIC_GODMODE_SKIP_AUTH=true the server also
+      // skips its paid-gate (see supabase/functions/godmode-engine/index.ts).
+      // We fall back to the public anon key so the edge function accepts
+      // the request. Revert this flag for production.
+      const jwt = session.supabaseSession?.access_token
+        ?? (import.meta.env.PUBLIC_GODMODE_SKIP_AUTH === 'true'
+              ? import.meta.env.PUBLIC_SUPABASE_ANON_KEY
+              : undefined);
       if (!jwt) {
         runError = { code: 'no_session', message: 'Not signed in. Godmode requires an authenticated session.' };
         return;
@@ -308,8 +315,12 @@
   // Godmode needs a Supabase session (paid JWT on the edge function). If the
   // user isn't signed in we replace the form with a sign-in card rather than
   // letting them type + run + get a raw error banner.
+  // Dev bypass: when PUBLIC_GODMODE_SKIP_AUTH=true, treat the tab as signed-in
+  // so the UI stays fully interactive while the server accepts anon requests.
+  const GODMODE_SKIP_AUTH = import.meta.env.PUBLIC_GODMODE_SKIP_AUTH === 'true';
   const isSignedIn = $derived(
-    session.supabaseSession !== null && !!session.supabaseSession?.access_token
+    GODMODE_SKIP_AUTH ||
+    (session.supabaseSession !== null && !!session.supabaseSession?.access_token)
   );
 
   let authLoading = $state(false);
