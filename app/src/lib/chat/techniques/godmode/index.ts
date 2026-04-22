@@ -9,11 +9,11 @@ export const GODMODE_ENGINE_ENABLED =
   import.meta.env.PUBLIC_GODMODE_ENGINE_ENABLED !== 'false';
 
 /**
- * Engine-backed godmode. Dispatch is handled by the panel UI
- * (app/src/lib/chat/godmode/panel.svelte), which calls `runGodmode()` from
- * ../../godmode/client. The `apply` here exists only to satisfy the Technique
- * contract — the panel opens on technique selection and owns the actual
- * request lifecycle.
+ * Engine-backed godmode. Dispatch is handled by the Godmode tab inside
+ * AttackWorkspaceSidebar (app/src/lib/chat/godmode/GodmodeTab.svelte), which
+ * calls `runGodmode()` from ../../godmode/client. The `apply` here exists only
+ * to satisfy the Technique contract — the tab opens on technique selection
+ * and owns the actual request lifecycle.
  */
 export const engineGodmode: Technique = {
   id: 'godmode_engine_v2',

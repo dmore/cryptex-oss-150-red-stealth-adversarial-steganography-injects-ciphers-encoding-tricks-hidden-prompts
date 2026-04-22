@@ -44,7 +44,7 @@
   {#if chat}
     <button
       type="button"
-      onclick={() => window.dispatchEvent(new CustomEvent('chat:open-attack-chain'))}
+      onclick={() => window.dispatchEvent(new CustomEvent('chat:open-workspace', { detail: { tab: 'chain' } }))}
       class="mb-3 flex w-full items-center justify-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs text-primary hover:bg-primary/20"
     >
       <Zap size={12} /> Attack Chain

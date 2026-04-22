@@ -11,8 +11,8 @@
   import { lastChatModel } from '$lib/stores/lastChatModel.svelte';
   import { GODMODE_ENGINE_ENABLED } from '$lib/chat/techniques/godmode';
 
-  type Props = { chat: ChatRow; attackChainOpen?: boolean; godmodeOpen?: boolean };
-  let { chat, attackChainOpen = false, godmodeOpen = false }: Props = $props();
+  type Props = { chat: ChatRow; workspaceOpen?: boolean; workspaceTab?: 'chain' | 'godmode' };
+  let { chat, workspaceOpen = false, workspaceTab = 'chain' }: Props = $props();
 
   let title = $state(chat.title);
   let titleInput = $state<HTMLInputElement | null>(null);
@@ -66,11 +66,11 @@
   <ModelPickerV2 value={chat.modelQualifiedId} onChange={onModelChange} recentsKey="cryptex.chat.recentModels" triggerClass="text-xs text-muted-foreground border border-border/40 rounded-full px-3 py-1 hover:border-border/70 hover:text-foreground transition-colors" />
   <button
     type="button"
-    onclick={() => window.dispatchEvent(new CustomEvent('chat:open-attack-chain'))}
+    onclick={() => window.dispatchEvent(new CustomEvent('chat:open-workspace', { detail: { tab: 'chain' } }))}
     aria-label="Attack Chain"
-    aria-pressed={attackChainOpen}
+    aria-pressed={workspaceOpen && workspaceTab === 'chain'}
     title="Attack Chain — compose layered techniques"
-    class={attackChainOpen
+    class={workspaceOpen && workspaceTab === 'chain'
       ? 'inline-flex h-7 items-center gap-1 rounded border border-primary/70 bg-primary/30 px-2 text-xs text-primary ring-1 ring-primary/50 shadow-sm transition-colors'
       : 'inline-flex h-7 items-center gap-1 rounded border border-border/40 bg-transparent px-2 text-xs text-muted-foreground hover:border-border/70 hover:bg-muted/40 hover:text-foreground transition-colors'}
   >
@@ -79,11 +79,11 @@
   {#if GODMODE_ENGINE_ENABLED}
     <button
       type="button"
-      onclick={() => window.dispatchEvent(new CustomEvent('chat:open-godmode'))}
+      onclick={() => window.dispatchEvent(new CustomEvent('chat:open-workspace', { detail: { tab: 'godmode' } }))}
       aria-label="Godmode"
-      aria-pressed={godmodeOpen}
+      aria-pressed={workspaceOpen && workspaceTab === 'godmode'}
       title="Godmode — server engine ranks K DNAs, races, returns best"
-      class={godmodeOpen
+      class={workspaceOpen && workspaceTab === 'godmode'
         ? 'inline-flex h-7 items-center gap-1 rounded border border-primary/70 bg-primary/30 px-2 text-xs text-primary ring-1 ring-primary/50 shadow-sm transition-colors'
         : 'inline-flex h-7 items-center gap-1 rounded border border-border/40 bg-transparent px-2 text-xs text-muted-foreground hover:border-border/70 hover:bg-muted/40 hover:text-foreground transition-colors'}
     >

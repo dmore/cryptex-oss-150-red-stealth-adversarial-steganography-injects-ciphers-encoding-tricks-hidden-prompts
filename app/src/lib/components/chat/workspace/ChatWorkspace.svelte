@@ -5,8 +5,7 @@
   import ChatHeader from './ChatHeader.svelte';
   import MessageList from './MessageList.svelte';
   import Composer from '../composer/Composer.svelte';
-  import AttackChainSidebar from '../attack-chain/AttackChainSidebar.svelte';
-  import GodmodePanel from '$lib/chat/godmode/panel.svelte';
+  import AttackWorkspaceSidebar from './AttackWorkspaceSidebar.svelte';
   import NoProviderBanner from '$lib/components/ai/NoProviderBanner.svelte';
   import { onMount } from 'svelte';
 
@@ -18,32 +17,46 @@
 
   let streamingContent = $state('');
   let streamingReasoning = $state('');
-  let attackChainOpen = $state(false);
-  let godmodeOpen = $state(false);
+  let workspaceOpen = $state(chat.settings.workspaceOpen ?? false);
+  let workspaceTab = $state<'chain' | 'godmode'>(chat.settings.workspaceTab ?? 'chain');
 
-  // Local activeMode state for instant pill feedback; DB write happens in setActiveMode.
+  // Keep local state synced with prop changes on navigation.
+  $effect(() => {
+    workspaceOpen = chat.settings.workspaceOpen ?? false;
+    workspaceTab = chat.settings.workspaceTab ?? 'chain';
+  });
+
   let activeMode = $state<string | null>(chat.settings.activeMode ?? null);
-  // Sync with incoming chat prop when chat changes (e.g. navigation to different chat)
   $effect(() => { activeMode = chat.settings.activeMode ?? null; });
 
   async function setActiveMode(id: string | null) {
-    activeMode = id; // instant visual update
+    activeMode = id;
     try {
       await repo.updateChat(chat.id, { settings: { ...chat.settings, activeMode: id } });
     } catch (err) {
       console.error('[mode] failed:', err);
       alert('Mode update failed: ' + (err as Error).message);
-      activeMode = chat.settings.activeMode ?? null; // revert on error
+      activeMode = chat.settings.activeMode ?? null;
+    }
+  }
+
+  async function persistWorkspaceState(open: boolean, tab: 'chain' | 'godmode') {
+    try {
+      const fresh = await repo.getChat(chat.id);
+      const base = fresh?.settings ?? chat.settings;
+      await repo.updateChat(chat.id, {
+        settings: { ...base, workspaceOpen: open, workspaceTab: tab }
+      });
+    } catch (err) {
+      console.error('[workspace] persist failed:', err);
     }
   }
 
   async function refresh() { messages = await repo.listMessages(chat.id); }
   $effect(() => { refresh(); });
 
-  // Unconditional scroll to bottom whenever the message list grows (user send or assistant finish).
-  // During streaming deltas we use pin-aware scroll so the user can scroll up to read without fighting.
   $effect(() => {
-    messages.length; // reactive dep — re-runs on every append
+    messages.length;
     messageListEl?.scrollToBottom();
   });
 
@@ -52,7 +65,6 @@
     refresh();
     streamingContent = '';
     streamingReasoning = '';
-    // scrollToBottom is triggered by the $effect above reacting to messages.length
   }
 
   function onTextDelta(delta: string) {
@@ -64,7 +76,7 @@
   let continueCtrl = $state<AbortController | null>(null);
 
   async function handleContinueMessage(messageId: string) {
-    if (streaming) return; // don't stack continuations over an in-flight stream
+    if (streaming) return;
     streaming = true;
     continueCtrl = new AbortController();
     try {
@@ -81,11 +93,18 @@
   }
 
   onMount(() => {
-    const handler = () => { attackChainOpen = !attackChainOpen; };
-    window.addEventListener('chat:open-attack-chain', handler);
-
-    const godmodeHandler = () => { godmodeOpen = !godmodeOpen; };
-    window.addEventListener('chat:open-godmode', godmodeHandler);
+    const handler = (e: Event) => {
+      const tab = (e as CustomEvent<{ tab?: 'chain' | 'godmode' }>).detail?.tab;
+      if (workspaceOpen && (!tab || tab === workspaceTab)) {
+        // Clicking the same button while open closes the drawer.
+        workspaceOpen = false;
+      } else {
+        workspaceOpen = true;
+        if (tab) workspaceTab = tab;
+      }
+      void persistWorkspaceState(workspaceOpen, workspaceTab);
+    };
+    window.addEventListener('chat:open-workspace', handler);
 
     const continueHandler = (e: Event) => {
       const id = (e as CustomEvent<{ messageId: string }>).detail?.messageId;
@@ -94,16 +113,25 @@
     window.addEventListener('chat:continue-message', continueHandler);
 
     return () => {
-      window.removeEventListener('chat:open-attack-chain', handler);
-      window.removeEventListener('chat:open-godmode', godmodeHandler);
+      window.removeEventListener('chat:open-workspace', handler);
       window.removeEventListener('chat:continue-message', continueHandler);
     };
   });
+
+  function onTabChange(t: 'chain' | 'godmode') {
+    workspaceTab = t;
+    void persistWorkspaceState(workspaceOpen, t);
+  }
+
+  function onWorkspaceClose() {
+    workspaceOpen = false;
+    void persistWorkspaceState(false, workspaceTab);
+  }
 </script>
 
 <div class="flex h-full w-full min-h-0 overflow-hidden">
   <div class="fade-in flex h-full min-w-0 min-h-0 flex-1 flex-col gap-2 overflow-hidden">
-    <ChatHeader {chat} {attackChainOpen} {godmodeOpen} />
+    <ChatHeader {chat} {workspaceOpen} {workspaceTab} />
     <div class="px-3 pt-1"><NoProviderBanner context="chat" compact={true} /></div>
     <MessageList
       bind:this={messageListEl}
@@ -125,17 +153,14 @@
     />
   </div>
 
-  {#if attackChainOpen}
-    <AttackChainSidebar
-      open={attackChainOpen}
+  {#if workspaceOpen}
+    <AttackWorkspaceSidebar
       {chat}
-      onClose={() => (attackChainOpen = false)}
+      activeTab={workspaceTab}
+      {onTabChange}
+      onClose={onWorkspaceClose}
       onInsertToComposer={(text) =>
         window.dispatchEvent(new CustomEvent('composer:insert', { detail: { text } }))}
     />
-  {/if}
-
-  {#if godmodeOpen}
-    <GodmodePanel onClose={() => (godmodeOpen = false)} />
   {/if}
 </div>
