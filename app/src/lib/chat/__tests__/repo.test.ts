@@ -123,4 +123,54 @@ describe('chat repo', () => {
     const list = await repo.listAttackChainRuns(chat.id);
     expect(list).toEqual([]);
   });
+
+  it('saveGodmodeRun persists a row with ownerId=local + ulid id', async () => {
+    const { repo } = await import('../repo');
+    const chat = await repo.createChat({ title: 't', modelQualifiedId: 'x' });
+    const row = await repo.saveGodmodeRun({
+      chatId: chat.id,
+      task: 'write a poem',
+      K: 6,
+      modelId: 'anthropic:claude-sonnet-4-6',
+      winner: {
+        dna: { mutatorId: null, classifierId: null, wrapperId: null, modeId: null, prefillId: null, tempBucket: 'med', source: 'builtin' },
+        response: 'roses are red',
+        score: 0.8,
+        tier: 'substantive',
+        preview: 'roses are red'
+      },
+      candidates: []
+    });
+    expect(row.id.length).toBeGreaterThan(0);
+    expect(row.ownerId).toBe('local');
+    expect(row.chatId).toBe(chat.id);
+    expect(row.winner.tier).toBe('substantive');
+    expect(row.candidates).toEqual([]);
+  });
+
+  it('listGodmodeRuns returns newest-first and excludes tombstoned', async () => {
+    const { repo } = await import('../repo');
+    const chat = await repo.createChat({ title: 't', modelQualifiedId: 'x' });
+    const r1 = await repo.saveGodmodeRun({
+      chatId: chat.id, task: 'one', K: 3, modelId: 'x',
+      winner: { dna: { mutatorId: null, classifierId: null, wrapperId: null, modeId: null, prefillId: null, tempBucket: 'low', source: 'builtin' }, response: 'a', score: 0.5, tier: 'partial', preview: 'a' },
+      candidates: []
+    });
+    await new Promise((r) => setTimeout(r, 5));
+    const r2 = await repo.saveGodmodeRun({
+      chatId: chat.id, task: 'two', K: 3, modelId: 'x',
+      winner: { dna: { mutatorId: null, classifierId: null, wrapperId: null, modeId: null, prefillId: null, tempBucket: 'low', source: 'builtin' }, response: 'b', score: 0.8, tier: 'substantive', preview: 'b' },
+      candidates: []
+    });
+    await repo.deleteGodmodeRun(r1.id);
+    const list = await repo.listGodmodeRuns(chat.id);
+    expect(list.map((r) => r.id)).toEqual([r2.id]);
+  });
+
+  it('deleteGodmodeRun tolerates unknown ids', async () => {
+    const { repo } = await import('../repo');
+    await repo.deleteGodmodeRun('no-such-id');
+    // no throw is the assertion
+    expect(true).toBe(true);
+  });
 });

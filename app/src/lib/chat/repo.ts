@@ -3,7 +3,8 @@ import { db } from './db';
 import { currentOwnerId } from '$lib/auth/session.svelte';
 import type {
   ChatRow, MessageRow, AttachmentRow, ChatSettings,
-  AttackChainRunRow, AttackChainLayerTrace
+  AttackChainRunRow, AttackChainLayerTrace,
+  GodmodeRunRow, GodmodeCandidateRecord
 } from './types';
 import { DEFAULT_CHAT_SETTINGS } from './types';
 
@@ -192,6 +193,56 @@ export const repo = {
     const existing = await db.attackChainRuns.get(id);
     if (!existing || existing.ownerId !== ownerId()) return;
     await db.attackChainRuns.put(
+      JSON.parse(JSON.stringify({ ...existing, tombstoned: true, updatedAt: Date.now() }))
+    );
+  },
+
+  /** Persist one completed Godmode engine run. Caller supplies everything
+   *  except id/ownerId/createdAt/updatedAt/tombstoned which are stamped here. */
+  async saveGodmodeRun(input: {
+    chatId: string;
+    task: string;
+    K: 3 | 6 | 12;
+    modelId: string;
+    winner: GodmodeCandidateRecord;
+    candidates: GodmodeCandidateRecord[];
+  }): Promise<GodmodeRunRow> {
+    const now = Date.now();
+    const base: GodmodeRunRow = {
+      id: ulid(),
+      ownerId: ownerId(),
+      chatId: input.chatId,
+      createdAt: now,
+      updatedAt: now,
+      task: input.task,
+      K: input.K,
+      modelId: input.modelId,
+      winner: input.winner,
+      candidates: [...input.candidates]
+    };
+    const row: GodmodeRunRow = JSON.parse(JSON.stringify(base));
+    await db.godmodeRuns.put(row);
+    return row;
+  },
+
+  /** Most-recent-first list of non-tombstoned runs for a chat. Limit 50
+   *  by default — the UI further slices to 10 for the collapsible panel. */
+  async listGodmodeRuns(chatId: string, limit = 50): Promise<GodmodeRunRow[]> {
+    const all = await db.godmodeRuns
+      .where('[chatId+createdAt]')
+      .between([chatId, -Infinity], [chatId, Infinity])
+      .toArray();
+    return all
+      .filter((r) => r.ownerId === ownerId() && !r.tombstoned)
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, limit);
+  },
+
+  /** Soft-delete (tombstone) a run. */
+  async deleteGodmodeRun(id: string): Promise<void> {
+    const existing = await db.godmodeRuns.get(id);
+    if (!existing || existing.ownerId !== ownerId()) return;
+    await db.godmodeRuns.put(
       JSON.parse(JSON.stringify({ ...existing, tombstoned: true, updatedAt: Date.now() }))
     );
   }
