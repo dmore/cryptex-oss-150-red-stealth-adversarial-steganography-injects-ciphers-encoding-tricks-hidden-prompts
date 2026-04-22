@@ -3,13 +3,53 @@ import type { Adapter } from './base';
 import type { Model, ProviderRecord } from '../types';
 import { translateError } from '../errors';
 
+/**
+ * OpenAI reasoning & GPT-5 models reject `max_tokens` in favor of
+ * `max_completion_tokens`. The `@ai-sdk/openai-compatible` package
+ * is generic and always sends `max_tokens`, so requests against
+ * `o1*`, `o3*`, `o4*`, and `gpt-5*` on the OpenAI endpoint (or any
+ * OpenAI-compat instance that mirrors OpenAI's strict validation)
+ * fail with "Unsupported parameter". We patch the request body on
+ * the way out via the fetch middleware hook. Other models get the
+ * body untouched — Groq, Together, Fireworks, etc. still accept
+ * `max_tokens` normally.
+ */
+const REASONING_MODEL_RE = /^(o\d+(?:[-.].*)?|gpt-5(?:[-.].*)?)$/i;
+
+function needsCompletionTokensRewrite(modelId: unknown): boolean {
+  return typeof modelId === 'string' && REASONING_MODEL_RE.test(modelId);
+}
+
+async function patchedFetch(
+  input: string | URL | Request,
+  init?: RequestInit
+): Promise<Response> {
+  if (init?.method === 'POST' && typeof init.body === 'string') {
+    try {
+      const body = JSON.parse(init.body);
+      if (needsCompletionTokensRewrite(body?.model) && 'max_tokens' in body) {
+        body.max_completion_tokens = body.max_tokens;
+        delete body.max_tokens;
+        // OpenAI reasoning models also reject `temperature` overrides — keep
+        // only if strictly 1 (the supported value). Safer to omit.
+        if ('temperature' in body && body.temperature !== 1) delete body.temperature;
+        init = { ...init, body: JSON.stringify(body) };
+      }
+    } catch {
+      // Body wasn't JSON — leave it alone.
+    }
+  }
+  return fetch(input as RequestInfo, init);
+}
+
 export function openaiCompatAdapter(record: Extract<ProviderRecord, { id: 'openai-compat' }>): Adapter {
   const key = (record.apiKey || '').trim();
 
   const provider = createOpenAICompatible({
     name: record.name || 'openai-compat',
     baseURL: record.baseURL,
-    headers: key ? { Authorization: `Bearer ${key}` } : {}
+    headers: key ? { Authorization: `Bearer ${key}` } : {},
+    fetch: patchedFetch
   });
 
   return {
@@ -22,14 +62,22 @@ export function openaiCompatAdapter(record: Extract<ProviderRecord, { id: 'opena
       // Explicit "Verify" path — POST /chat/completions with 1-token probe using test model.
       // testModel is populated from preset.defaultTestModel at record creation; fallback only fires for fresh Custom endpoints before the user sets one.
       const testModel = record.testModel || 'gpt-3.5-turbo';
+      // Reasoning / GPT-5 models reject `max_tokens`; use `max_completion_tokens` for them.
+      const probeBody: Record<string, unknown> = {
+        model: testModel,
+        messages: [{ role: 'user', content: '.' }]
+      };
+      if (needsCompletionTokensRewrite(testModel)) {
+        probeBody.max_completion_tokens = 1;
+      } else {
+        probeBody.max_tokens = 1;
+      }
       let resp: Response;
       try {
         resp = await fetch(`${record.baseURL}/chat/completions`, {
           method: 'POST',
           headers: { 'content-type': 'application/json', Authorization: `Bearer ${candidate}` },
-          body: JSON.stringify({
-            model: testModel, max_tokens: 1, messages: [{ role: 'user', content: '.' }]
-          }),
+          body: JSON.stringify(probeBody),
           signal
         });
       } catch (e) {
