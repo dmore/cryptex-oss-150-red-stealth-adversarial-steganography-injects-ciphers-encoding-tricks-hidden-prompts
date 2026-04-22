@@ -57,7 +57,15 @@ async function anthropicComplete(
     }),
     signal: args.signal,
   });
-  if (!res.ok) throw new Error(`anthropic_${res.status}`);
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    let msg = `anthropic_${res.status}`;
+    try {
+      const j = JSON.parse(body);
+      if (j?.error?.message) msg += `: ${String(j.error.message).slice(0, 160)}`;
+    } catch { /* non-JSON body */ }
+    throw new Error(msg);
+  }
   const data = await res.json();
   const first = Array.isArray(data.content) ? data.content[0] : null;
   const text = first?.type === 'text' ? String(first.text ?? '') : '';
@@ -119,6 +127,10 @@ Deno.serve(async (req) => {
     return new Response('invalid json', { status: 400, headers: corsHeaders });
   }
 
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return new Response('invalid json', { status: 400, headers: corsHeaders });
+  }
+
   if (typeof body.task !== 'string' || body.task.length === 0 || body.task.length > 8000) {
     return new Response('invalid task', { status: 400, headers: corsHeaders });
   }
@@ -172,12 +184,13 @@ Deno.serve(async (req) => {
           if (req.signal.aborted) break;
         }
       } catch (e) {
+        console.error('[godmode-engine] crash', e);
         send({ v: 1, type: 'error', code: 'engine_crash', message: String(e).slice(0, 200) });
       } finally {
         try {
           await memory?.close();
-        } catch {
-          /* noop */
+        } catch (e) {
+          console.error('[godmode-engine] memory close failed', e);
         }
         try {
           controller.close();
