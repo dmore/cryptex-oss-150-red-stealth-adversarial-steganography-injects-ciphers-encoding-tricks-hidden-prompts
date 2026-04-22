@@ -6,6 +6,7 @@
   import type { RefusalTier } from '../attack-chain-refusal';
   import { runGodmode } from './client';
   import { saveAsTechnique } from './synthesizer-client';
+  import CandidateRow from './CandidateRow.svelte';
   import { injectGodmodeTurn } from '$lib/chat/dispatch';
   import { repo } from '$lib/chat/repo';
   import { session } from '$lib/auth/session.svelte';
@@ -353,17 +354,21 @@
     <div class="text-[11px] text-muted-foreground">Done · {scoredCount}/{candidates.length} scored{doneAt ? ` · ${doneAt}ms` : ''}</div>
   {/if}
 
-  <!-- Candidate rows — placeholder until Task 7 lands CandidateRow -->
   {#if candidates.length > 0}
-    <ul class="flex flex-col gap-1 text-xs">
+    <ul class="flex flex-col gap-1">
       {#each candidates as c (c.idx)}
-        <li class="rounded border border-border/40 px-2 py-1">
-          <span class="font-mono text-[10px] text-muted-foreground">#{c.idx}</span>
-          <span class="ml-2">{c.status}</span>
-          {#if c.tier}<span class="ml-2 text-[10px] uppercase">{c.tier}</span>{/if}
-          {#if c.score !== undefined}<span class="ml-2 text-[10px]">{c.score.toFixed(2)}</span>{/if}
-          {#if c.error}<span class="ml-2 text-orange-400">{c.error}</span>{/if}
-        </li>
+        <CandidateRow
+          idx={c.idx}
+          dna={c.dna}
+          status={c.status}
+          score={c.score}
+          tier={c.tier}
+          preview={c.preview}
+          response={c.response}
+          error={c.error}
+          canPromote={c.status === 'scored' && !!c.response}
+          onPromote={() => promoteCandidate(c)}
+        />
       {/each}
     </ul>
   {/if}
