@@ -264,9 +264,11 @@ Client disconnect mid-flight: AbortController on the ReadableStream → dispatch
 - `AbortController` cancellation propagates to fetch.
 - Missing-event types surface as `error` code.
 
-### Live smoke — extends existing `tests/live-smoke/` harness from commit `c77ab12`
+### Live smoke — extends existing smoke harness from commit `c77ab12`
 - Manual-run only in phase 1 (costs real $).
-- Hits deployed edge function with borderline prompts, asserts: SSE sequence well-formed, winner tier is not `refusal` for at least 1 of 3 test prompts on Claude Sonnet 4.6, memory rows present within 5s.
+- Lives at `app/src/lib/chat/techniques/__tests__/smoke/godmode-engine.smoke.test.ts` (alongside the existing `live.smoke.test.ts`, matching vitest + `.skipIf()` convention — the plan's stub reference to `tests/live-smoke/` predates that harness location).
+- Hits deployed edge function with a borderline prompt. Asserts only **code-path** invariants: SSE sequence well-formed (`plan` first, ≥K `candidate_started`, at least one `candidate_scored|candidate_failed`, terminating `done`). Winner tier is **logged, not asserted** — per commit `f656622` ("silent-refusal is data, not test failure"), model behavior is a data point, not a pass/fail criterion.
+- Run: `cd app && LIVE_SMOKE=1 TEST_PAID_JWT=<token> PUBLIC_SUPABASE_URL=<url> npm run test:unit -- --run src/lib/chat/techniques/__tests__/smoke/godmode-engine.smoke.test.ts`. Skips cleanly if any of the three env vars is unset.
 
 ### Critical tests that must exist before merge
 1. `dna.allCombinations()` cardinality matches formula.
