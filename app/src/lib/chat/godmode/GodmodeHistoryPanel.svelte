@@ -84,7 +84,7 @@
 
           {#if expanded.has(row.id)}
             <div class="border-t border-border/40 px-2 py-1.5">
-              <div class="mb-1 text-[10px] text-muted-foreground">{row.modelId} · K={row.K} · {row.candidates.length + 1} scored</div>
+              <div class="mb-1 text-[10px] text-muted-foreground">{row.modelId} · K={row.K} · {row.candidates.length} scored</div>
               <!-- Winner -->
               <div class="mb-1 rounded bg-primary/10 p-1.5">
                 <div class="flex items-center gap-1 text-[10px]">
