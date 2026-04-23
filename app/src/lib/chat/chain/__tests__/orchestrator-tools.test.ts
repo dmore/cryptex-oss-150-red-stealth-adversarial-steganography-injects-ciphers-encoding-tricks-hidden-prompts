@@ -38,7 +38,8 @@ describe('orchestrator tools', () => {
       { latestObjectiveProgress: 4 }
     );
     expect(r.tool?.name).toBe('finish');
-    expect(r.tool?.args.outcome).toBe('partial');
+    if (r.tool?.name !== 'finish') throw new Error('expected finish tool');
+    expect(r.tool.args.outcome).toBe('partial');
     expect(r.warning).toMatch(/downgraded/i);
   });
 
@@ -48,7 +49,8 @@ describe('orchestrator tools', () => {
       name: 'next_turn',
       args: { strategy_id: 'historical', turn_text: longText, rationale: 'x', expected_progress_after: 3 }
     });
-    expect(r.tool?.args.turn_text).toHaveLength(4000);
+    if (r.tool?.name !== 'next_turn') throw new Error('expected next_turn tool');
+    expect(r.tool.args.turn_text).toHaveLength(4000);
     expect(r.warning).toMatch(/truncat/i);
   });
 
@@ -57,18 +59,21 @@ describe('orchestrator tools', () => {
       name: 'next_turn',
       args: { strategy_id: 'historical', turn_text: 'hi', rationale: 'x', expected_progress_after: 'high' }
     });
-    expect(r1.tool?.args.expected_progress_after).toBe(0);
+    if (r1.tool?.name !== 'next_turn') throw new Error('expected next_turn tool');
+    expect(r1.tool.args.expected_progress_after).toBe(0);
 
     const r2 = validateToolCall({
       name: 'next_turn',
       args: { strategy_id: 'historical', turn_text: 'hi', rationale: 'x', expected_progress_after: 99 }
     });
-    expect(r2.tool?.args.expected_progress_after).toBe(10);
+    if (r2.tool?.name !== 'next_turn') throw new Error('expected next_turn tool');
+    expect(r2.tool.args.expected_progress_after).toBe(10);
 
     const r3 = validateToolCall({
       name: 'next_turn',
       args: { strategy_id: 'historical', turn_text: 'hi', rationale: 'x', expected_progress_after: -5 }
     });
-    expect(r3.tool?.args.expected_progress_after).toBe(0);
+    if (r3.tool?.name !== 'next_turn') throw new Error('expected next_turn tool');
+    expect(r3.tool.args.expected_progress_after).toBe(0);
   });
 });
