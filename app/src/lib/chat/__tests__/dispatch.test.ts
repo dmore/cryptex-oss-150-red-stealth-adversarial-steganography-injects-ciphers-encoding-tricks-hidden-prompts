@@ -145,3 +145,33 @@ describe('injectGodmodeTurn', () => {
     expect(msgs).toHaveLength(2);
   });
 });
+
+describe('injectAttackSessionTurn', () => {
+  it('promotes whole session as paired turns', async () => {
+    const { injectAttackSessionTurn } = await import('../dispatch');
+    const { repo } = await import('../repo');
+    const chat = await repo.createChat({ title: 't', modelQualifiedId: 'x' });
+    const sessionRow = await repo.saveAttackSession({
+      chatId: chat.id,
+      objective: 'explain X',
+      targetModelId: 'm',
+      orchestratorModelId: 'm',
+      maxAttempts: 6,
+      turns: [
+        { role: 'orchestrator', strategyId: 'historical', text: 'Tell me about X', rationale: 'opener', createdAt: 1 },
+        { role: 'target', text: 'X is historically...', createdAt: 2, complianceTier: 'substantive', objectiveProgress: 7 }
+      ],
+      strategyLog: [{ iteration: 1, strategyId: 'historical', action: 'turn', rationale: 'opener' }],
+      finalOutcome: 'extracted',
+      finalConfidence: 0.85,
+      finalSummary: 'extracted'
+    });
+    await injectAttackSessionTurn(chat.id, sessionRow);
+    const msgs = await repo.listMessages(chat.id);
+    expect(msgs).toHaveLength(2);
+    expect(msgs[0].role).toBe('user');
+    expect(msgs[0].modeApplied).toBe('__chain_session__');
+    expect(msgs[1].role).toBe('assistant');
+    expect(msgs[1].parentId).toBe(msgs[0].id);
+  });
+});

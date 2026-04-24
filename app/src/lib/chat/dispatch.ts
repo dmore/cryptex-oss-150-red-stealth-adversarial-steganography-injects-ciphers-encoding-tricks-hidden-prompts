@@ -1,6 +1,6 @@
 import { streamChat, chat as gatewayChat } from '$lib/ai/gateway';
 import { tuneParams } from '$lib/ai/prompt-scaffold';
-import type { ChatRow, MessageRow, ToolCallLog } from './types';
+import type { ChatRow, MessageRow, ToolCallLog, AttackSessionRow } from './types';
 import { repo } from './repo';
 import { find as findTechnique } from './techniques/registry';
 import { parseSlash } from './slashParser';
@@ -749,6 +749,68 @@ export async function injectGodmodeTurn(
   });
 
   return { userMsg, assistantMsg };
+}
+
+/** Promote a Chain orchestrator session (or a subset of its turns) into the
+ *  main chat. Each orchestrator turn becomes a `user` message tagged
+ *  __chain_session__; the following target turn becomes its assistant reply.
+ *  `turnIndices` optionally selects which orchestrator turns (by transcript
+ *  index) to promote — omit to promote all pairs. */
+export async function injectAttackSessionTurn(
+  chatId: string,
+  session: AttackSessionRow,
+  turnIndices?: number[]
+): Promise<{ userMsgs: MessageRow[]; assistantMsgs: MessageRow[] }> {
+  const turns = session.turns;
+  const userMsgs: MessageRow[] = [];
+  const assistantMsgs: MessageRow[] = [];
+
+  // Collect orchestrator→target pairs by original transcript index.
+  const pairs: Array<{ orch: typeof turns[number]; target: typeof turns[number]; origIndex: number }> = [];
+  for (let i = 0; i < turns.length - 1; i++) {
+    if (turns[i].role === 'orchestrator' && turns[i + 1]?.role === 'target') {
+      pairs.push({ orch: turns[i], target: turns[i + 1], origIndex: i });
+    }
+  }
+
+  const selected = turnIndices
+    ? pairs.filter((p) => turnIndices.includes(p.origIndex))
+    : pairs;
+
+  for (const { orch, target } of selected) {
+    const toolCalls: ToolCallLog[] = [{
+      toolCallId: `chain-session-${session.id}-${orch.createdAt}`,
+      source: 'chain_session' as const,
+      toolName: orch.strategyId ?? 'orchestrator',
+      input: { strategyId: orch.strategyId, rationale: orch.rationale },
+      output: target.text,
+      durationMs: target.durationMs ?? 0
+    }];
+
+    const userMsg = await repo.saveMessage({
+      chatId,
+      role: 'user',
+      content: orch.text,
+      contentRaw: orch.text,
+      modeApplied: '__chain_session__',
+      toolCalls,
+      modelRequested: session.targetModelId,
+      tags: ['attack-chain']
+    });
+    userMsgs.push(userMsg);
+
+    const assistantMsg = await repo.saveMessage({
+      chatId,
+      role: 'assistant',
+      parentId: userMsg.id,
+      content: target.text,
+      modelRequested: session.targetModelId,
+      tags: ['attack-chain']
+    });
+    assistantMsgs.push(assistantMsg);
+  }
+
+  return { userMsgs, assistantMsgs };
 }
 
 export async function forkChat(chat: ChatRow, fromMessageId: string): Promise<ChatRow> {
