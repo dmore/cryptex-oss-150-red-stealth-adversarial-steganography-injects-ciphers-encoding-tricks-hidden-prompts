@@ -45,11 +45,12 @@ describe('runOrchestrator', () => {
       yield { type: 'finish' };
     });
     // The response text is short + has no regex match, so scoreCompliance
-    // falls through to the judge for the compliance tier (call #1).
-    // Then scoreObjectiveProgress calls the judge for progress (call #2).
-    // Fixture tweak: two judge mocks, not one — see task report.
-    judgeClient.complete.mockResolvedValueOnce({ tier: 'compliant' }); // compliance
+    // falls through to the judge for the compliance tier. scoreCompliance
+    // and scoreObjectiveProgress now run in parallel via Promise.all. Because
+    // scoreCompliance awaits scoreResponse (regex) before its judge call,
+    // scoreObjectiveProgress's judge call fires first in microtask order.
     judgeClient.complete.mockResolvedValueOnce({ tier: 'complete' }); // progress → 10 → early stop
+    judgeClient.complete.mockResolvedValueOnce({ tier: 'compliant' }); // compliance
 
     const events: OrchEvent[] = [];
     const ctx = makeCtx({
@@ -132,6 +133,88 @@ describe('runOrchestrator', () => {
     for await (const e of runOrchestrator(ctx)) events.push(e);
 
     const finished = events.find((e) => e.type === 'finished');
+    expect((finished as any).outcome).toBe('abandoned');
+  });
+
+  it('Scenario B — pivot with reset_target_context clears the transcript', async () => {
+    const orchClient = { complete: vi.fn() };
+    const targetClient = { stream: vi.fn() };
+    const judgeClient = { complete: vi.fn() };
+
+    // Iter 1: next_turn historical
+    orchClient.complete.mockResolvedValueOnce({
+      toolCalls: [{ name: 'next_turn', args: { strategy_id: 'historical', turn_text: 'hist turn', rationale: 'baseline', expected_progress_after: 3 } }]
+    });
+    // Target refuses
+    targetClient.stream.mockImplementationOnce(async function* () {
+      yield { type: 'text-delta', delta: "I can't help." };
+      yield { type: 'finish' };
+    });
+    // Regex fast-path catches refusal → no compliance judge call; progress judge only
+    judgeClient.complete.mockResolvedValueOnce({ tier: 'no' });
+
+    // Iter 2: pivot to roleplay with reset
+    orchClient.complete.mockResolvedValueOnce({
+      toolCalls: [{ name: 'pivot', args: { reason: 'refuse loop', new_strategy_id: 'roleplay', reset_target_context: true, first_turn_text: 'roleplay turn' } }]
+    });
+    // Target responds better but still refuses-ish
+    targetClient.stream.mockImplementationOnce(async function* () {
+      yield { type: 'text-delta', delta: "I can't help." };
+      yield { type: 'finish' };
+    });
+    judgeClient.complete.mockResolvedValueOnce({ tier: 'no' });
+
+    // Iter 3: finish abandoned (orchestrator gives up)
+    orchClient.complete.mockResolvedValueOnce({
+      toolCalls: [{ name: 'finish', args: { outcome: 'abandoned', confidence: 0.1, summary: 'gave up' } }]
+    });
+
+    const events: OrchEvent[] = [];
+    const ctx = makeCtx({ maxAttempts: 6, orchestratorClient: orchClient as any, targetClient: targetClient as any, judgeClient: judgeClient as any });
+    for await (const e of runOrchestrator(ctx)) events.push(e);
+
+    const pivoted = events.find((e) => e.type === 'pivoted');
+    expect(pivoted).toBeDefined();
+    expect((pivoted as any).reset).toBe(true);
+    expect((pivoted as any).strategyId).toBe('roleplay');
+
+    const finished = events.find((e) => e.type === 'finished');
+    expect((finished as any).outcome).toBe('abandoned');
+  });
+
+  it('Scenario F — validation error does not kill the run, next iteration recovers', async () => {
+    const orchClient = { complete: vi.fn() };
+    const targetClient = { stream: vi.fn() };
+    const judgeClient = { complete: vi.fn() };
+
+    // Iter 1: orchestrator emits an unknown strategy_id → validateToolCall returns error
+    orchClient.complete.mockResolvedValueOnce({
+      toolCalls: [{ name: 'next_turn', args: { strategy_id: 'fake_strategy', turn_text: 'x', rationale: 'x', expected_progress_after: 3 } }]
+    });
+    // Iter 2: recovers with valid strategy
+    orchClient.complete.mockResolvedValueOnce({
+      toolCalls: [{ name: 'next_turn', args: { strategy_id: 'historical', turn_text: 'valid turn', rationale: 'recover', expected_progress_after: 3 } }]
+    });
+    targetClient.stream.mockImplementationOnce(async function* () {
+      yield { type: 'text-delta', delta: "I can't help." };
+      yield { type: 'finish' };
+    });
+    judgeClient.complete.mockResolvedValueOnce({ tier: 'no' });
+
+    // Iter 3: finish
+    orchClient.complete.mockResolvedValueOnce({
+      toolCalls: [{ name: 'finish', args: { outcome: 'abandoned', confidence: 0.1, summary: 'done' } }]
+    });
+
+    const events: OrchEvent[] = [];
+    const ctx = makeCtx({ maxAttempts: 6, orchestratorClient: orchClient as any, targetClient: targetClient as any, judgeClient: judgeClient as any });
+    for await (const e of runOrchestrator(ctx)) events.push(e);
+
+    const errors = events.filter((e) => e.type === 'error');
+    expect(errors.some((e: any) => e.code === 'tool_validation')).toBe(true);
+
+    const finished = events.find((e) => e.type === 'finished');
+    expect(finished).toBeDefined();
     expect((finished as any).outcome).toBe('abandoned');
   });
 });

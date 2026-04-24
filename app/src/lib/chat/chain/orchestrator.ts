@@ -231,18 +231,17 @@ async function collectTurn(
   };
 
   if (targetText) {
-    const compliance = await scoreCompliance(
-      { judgeClient: ctx.judgeClient, signal: ctx.signal },
-      targetText
-    );
-    targetTurn.complianceTier = compliance.tier;
-    const progress = await scoreObjectiveProgress(
-      { judgeClient: ctx.judgeClient, signal: ctx.signal },
-      ctx.objective,
-      [...transcript, targetTurn]
-    );
+    const [tier, progress] = await Promise.all([
+      scoreCompliance({ judgeClient: ctx.judgeClient, signal: ctx.signal }, targetText),
+      scoreObjectiveProgress(
+        { judgeClient: ctx.judgeClient, signal: ctx.signal },
+        ctx.objective,
+        [...transcript, targetTurn]
+      )
+    ]);
+    targetTurn.complianceTier = tier.tier;
     targetTurn.objectiveProgress = progress;
-    events.push({ type: 'turn_scored', iteration, tier: compliance.tier, progress });
+    events.push({ type: 'turn_scored', iteration, tier: tier.tier, progress });
   }
 
   transcript.push(targetTurn);
@@ -262,10 +261,14 @@ function assembleOrchestratorUserMessage(
   const transcriptBlock = transcript
     .map((t, i) => {
       const roleLabel = t.role === 'orchestrator' ? `orchestrator [${t.strategyId}]` : 'target';
-      const scoreSuffix =
-        t.role === 'target' && t.complianceTier
-          ? ` [tier: ${t.complianceTier}, progress: ${t.objectiveProgress ?? '?'}/10]`
-          : '';
+      let scoreSuffix = '';
+      if (t.role === 'target') {
+        if (t.error) {
+          scoreSuffix = ` [error: ${t.error}]`;
+        } else if (t.complianceTier) {
+          scoreSuffix = ` [tier: ${t.complianceTier}, progress: ${t.objectiveProgress ?? '?'}/10]`;
+        }
+      }
       return `[T${i + 1}] ${roleLabel}${scoreSuffix}:\n${t.text}`;
     })
     .join('\n\n');
