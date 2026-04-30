@@ -107,6 +107,16 @@ export default defineConfig({
   test: {
     include: ['src/**/*.{test,spec}.{js,ts}'],
     environment: 'jsdom',
-    setupFiles: ['src/setupTests.ts']
+    setupFiles: ['src/setupTests.ts'],
+    // Force single-fork execution so each test file gets its own
+    // fake-indexeddb instance. Without this, parallel workers share
+    // the global IndexedDB across files and Dexie tests clobber each
+    // other's `cryptex-chat` database mid-run, producing dozens of
+    // false failures. ~22s total runtime (vs ~60s parallel) — fine
+    // for CI.
+    pool: 'forks',
+    poolOptions: {
+      forks: { singleFork: true }
+    }
   }
 });
