@@ -4,6 +4,8 @@
   import { liveQuery } from 'dexie';
   import type { ChatRow } from '$lib/chat/types';
   import ChatWorkspace from '$lib/components/chat/workspace/ChatWorkspace.svelte';
+  import { activeChatStore } from '$lib/stores/activeChat.svelte';
+  import { onDestroy } from 'svelte';
 
   let chat = $state<ChatRow | null>(null);
   let loading = $state(true);
@@ -20,6 +22,18 @@
       error: (err) => { console.error('[chat liveQuery]', err); loading = false; }
     });
     return () => subscription.unsubscribe();
+  });
+
+  // Publish the live chat row to the global activeChatStore so ChatShell
+  // (which owns the 3-column layout + workspace mount) can read it.
+  $effect(() => {
+    activeChatStore.set(chat);
+  });
+
+  // Clear the slot when this page unmounts so a stale chat doesn't bleed
+  // into other routes that share the chat layout.
+  onDestroy(() => {
+    activeChatStore.set(null);
   });
 </script>
 

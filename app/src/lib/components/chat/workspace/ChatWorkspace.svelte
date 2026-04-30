@@ -5,7 +5,6 @@
   import ChatHeader from './ChatHeader.svelte';
   import MessageList from './MessageList.svelte';
   import Composer from '../composer/Composer.svelte';
-  import AttackWorkspaceSidebar from './AttackWorkspaceSidebar.svelte';
   import NoProviderBanner from '$lib/components/ai/NoProviderBanner.svelte';
   import { onMount } from 'svelte';
 
@@ -192,15 +191,6 @@
     };
   });
 
-  function onTabChange(t: 'chain' | 'godmode') {
-    workspaceTab = t;
-    void persistWorkspaceState(workspaceOpen, t);
-  }
-
-  function onWorkspaceClose() {
-    workspaceOpen = false;
-    void persistWorkspaceState(false, workspaceTab);
-  }
 </script>
 
 <div class="flex h-full w-full min-h-0 overflow-hidden">
@@ -232,15 +222,4 @@
       onStreamingChanged={(v) => (streaming = v)}
     />
   </div>
-
-  {#if workspaceOpen}
-    <AttackWorkspaceSidebar
-      {chat}
-      activeTab={workspaceTab}
-      {onTabChange}
-      onClose={onWorkspaceClose}
-      onInsertToComposer={(text) =>
-        window.dispatchEvent(new CustomEvent('composer:insert', { detail: { text } }))}
-    />
-  {/if}
 </div>
