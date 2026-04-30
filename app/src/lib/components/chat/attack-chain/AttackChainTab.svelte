@@ -176,9 +176,6 @@
       case 'strategy_pivoted':
         liveLog = [...liveLog, { iteration: e.iteration, strategyId: e.to, action: 'pivot', rationale: e.reset ? 'reset context' : 'soft pivot' }];
         break;
-      case 'pivoted':
-        // legacy-compat event; strategy_pivoted already handled
-        break;
       case 'turn_started': {
         // Compute step label for the upcoming orchestrator_turn_committed
         const orchCountInCurrent = liveTurns.filter((t) => t.role === 'orchestrator' && t.strategyId === e.strategyId).length;

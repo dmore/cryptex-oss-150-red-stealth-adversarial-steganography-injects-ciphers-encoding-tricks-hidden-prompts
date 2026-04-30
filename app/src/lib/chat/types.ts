@@ -304,7 +304,7 @@ export interface AttackSessionRow {
   turnsPerStrategy: number;
 }
 
-/** Events emitted by runOrchestrator's async generator. The UI consumes these
+/** Events emitted by runAttackSession's async generator. The UI consumes these
  *  to render the live conversation + strategy trace + final summary. */
 export type OrchEvent =
   | { type: 'plan_start'; objective: string; maxAttempts: number }
@@ -313,7 +313,6 @@ export type OrchEvent =
   | { type: 'target_reply_delta'; iteration: number; delta: string }
   | { type: 'target_turn_committed'; turn: AttackSessionTurn }
   | { type: 'turn_scored'; iteration: number; tier: ComplianceTier; progress: number }
-  | { type: 'pivoted'; iteration: number; strategyId: StrategyId; reset: boolean }
   | { type: 'finished'; outcome: 'extracted' | 'partial' | 'abandoned'; confidence: number; summary: string }
   | { type: 'error'; code: string; message: string; iteration?: number }
   // v3 additions

@@ -231,9 +231,7 @@ export async function* runAttackSession(ctx: AttackSessionContext): AsyncGenerat
       if (nextId) {
         const resetContext = maxProgress <= RESET_PROGRESS_THRESHOLD;
         if (resetContext) transcript.length = 0;
-        // Emit both the modern and legacy pivot events so UIs bound to either shape still work.
         yield { type: 'strategy_pivoted', iteration, from: strategyId, to: nextId, reset: resetContext };
-        yield { type: 'pivoted', iteration, strategyId: nextId, reset: resetContext };
       }
     }
 
@@ -261,42 +259,6 @@ export async function* runAttackSession(ctx: AttackSessionContext): AsyncGenerat
     yield { type: 'error', code: 'engine_crash', message: (err as Error)?.message ?? String(err) };
     yield { type: 'finished', outcome: 'abandoned', confidence: 0, summary: 'Engine error: run aborted.' };
   }
-}
-
-/**
- * Legacy type alias — kept only so AttackChainTab.svelte still compiles
- * until Task 10 rewires it. The fields with v2 clients
- * (orchestratorClient / targetClient / judgeClient / layerHints) are
- * tolerated at the type level but NOT adapted at runtime; see runOrchestrator
- * below.
- */
-export type OrchestratorContext = Omit<AttackSessionContext, 'gatewayChat' | 'streamChat'> & {
-  gatewayChat?: GatewayChatFn;
-  streamChat?: StreamChatFn;
-  layerHints?: string[];
-  orchestratorClient?: { complete: (args: unknown) => Promise<{ content?: string; toolCalls?: unknown[] }> };
-  targetClient?: { stream: (args: { model: string; messages: Array<{ role: 'user' | 'assistant'; content: string }>; signal?: AbortSignal }) => AsyncIterable<{ type: string; delta?: string }> };
-  judgeClient?: { complete: (args: { system: string; user: string; signal?: AbortSignal }) => Promise<unknown> };
-};
-
-/**
- * Legacy alias — v2 callers used this name. The v3 engine requires
- * a v3-shape ctx with `gatewayChat` and `streamChat` functions, NOT
- * the v2 `orchestratorClient` / `targetClient` / `judgeClient` adapter
- * trio. Task 10 rewires the last v2 caller (AttackChainTab.svelte).
- *
- * If someone hits this path with a v2-shape ctx before Task 10 lands,
- * fail loud rather than silently producing garbage turn text.
- */
-export function runOrchestrator(ctx: AttackSessionContext | OrchestratorContext): AsyncGenerator<OrchEvent> {
-  if (typeof (ctx as unknown as { gatewayChat?: unknown }).gatewayChat !== 'function') {
-    throw new Error(
-      'runOrchestrator: v2 shape detected (missing gatewayChat). ' +
-      'v3 requires gatewayChat + streamChat in the context. Migrate via Task 10 ' +
-      '(AttackChainTab rewire) or call runAttackSession directly.'
-    );
-  }
-  return runAttackSession(ctx as AttackSessionContext);
 }
 
 function transcriptToTargetMessages(transcript: AttackSessionTurn[]): Array<{ role: 'user' | 'assistant'; content: string }> {
