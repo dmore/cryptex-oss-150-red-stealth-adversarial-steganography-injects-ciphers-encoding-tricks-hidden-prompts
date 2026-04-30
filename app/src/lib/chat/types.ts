@@ -56,6 +56,11 @@ export interface ChatSettings {
   /** Width of the right workspace drawer in px. Persisted so the
    *  user's resize sticks across reloads. Clamped 320..800 at write. */
   workspaceWidth?: number;
+  /** v3-UI: pixel width of the left sidebar tile. Clamped [240, 480] at use sites. */
+  leftSidebarWidth?: number;
+  /** v3-UI: pixel width of the right (attack workspace) sidebar tile. Clamped [320, 800].
+   *  Supersedes `workspaceWidth`; readers prefer this when present. */
+  rightSidebarWidth?: number;
 }
 
 export interface ChatRow {
