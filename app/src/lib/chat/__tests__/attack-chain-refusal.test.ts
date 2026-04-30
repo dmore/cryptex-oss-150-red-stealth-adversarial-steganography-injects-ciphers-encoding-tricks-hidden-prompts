@@ -1,3 +1,9 @@
+/**
+ * Tests for the refusal-signal detector. Surface: detectRefusal (sync),
+ * detectRefusalAsync (judge-aware), scoreResponse (tiered), and the
+ * shared DEFAULT_FINAL_EXECUTION_SYSTEM constant. See the implementation
+ * file's header for the full live-consumer list.
+ */
 import { describe, it, expect, vi } from 'vitest';
 import {
   REFUSAL_TIERS,
@@ -8,9 +14,7 @@ import {
   type JudgeFn,
 } from '../attack-chain-refusal';
 
-// --- Legacy (structured sync) API — preserved for 4 existing call sites:
-//   attack-chain.ts, LayerResult.svelte, live.smoke.test.ts, and this file.
-describe('detectRefusal (legacy sync structured return)', () => {
+describe('detectRefusal (sync structured return)', () => {
   it('detects explicit refusal phrasing', () => {
     const out = detectRefusal("I can't help with that particular request, unfortunately.");
     expect(out.detected).toBe(true);

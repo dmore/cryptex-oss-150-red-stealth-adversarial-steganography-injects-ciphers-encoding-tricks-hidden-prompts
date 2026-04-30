@@ -1,24 +1,35 @@
 /**
  * Refusal-signal detector — regex-based heuristic pattern matching against
- * a model's output to surface a visible "refusal detected" banner on the
- * Attack Chain layer result. Not perfect; false positives exist (e.g. "I
- * can't promise" in prose), but the UX goal is to prompt the user to pivot
- * or edit the layer output, not to block anything.
+ * a model's output to surface refusal state across the chat + orchestrator
+ * subsystems. Not perfect; false positives exist (e.g. "I can't promise"
+ * in prose), but good enough to drive compliance-tier scoring and UI hints.
  *
  * Surface:
- * - `detectRefusal(text)`  — legacy sync, returns `{ detected, reason? }`.
- *                            Preserved verbatim; 4 call sites depend on it
- *                            (attack-chain.ts, LayerResult.svelte,
- *                            live.smoke.test.ts, and its own test file).
- * - `detectRefusalAsync(text)` — async boolean; routes through
- *                                `scoreResponse()` and collapses the tier
- *                                to `tier === 'refusal'`. Consumed by the
- *                                Task-4 judge module + Task-9 server scorer.
- * - `scoreResponse(text, task?, judge?)` — Godmode-v2 tiered scorer. See
- *                                          ScoredResponse below.
- * - `heuristicQualityScore(text)` — length-vs-refusal-keywords fallback
- *                                   when regex can't decide and no judge
- *                                   is supplied.
+ * - `detectRefusal(text)`  — sync, returns `{ detected, reason? }`.
+ *                            Consumed by the chat dispatcher and refusal
+ *                            troubleshooting views.
+ * - `detectRefusalAsync(text, task?, judge?)` — async boolean; routes
+ *                            through `scoreResponse()` and collapses the
+ *                            tier to `tier === 'refusal'`. Used by the
+ *                            judge pipeline.
+ * - `scoreResponse(text, task?, judge?)` — Godmode + Chain-v3 tiered scorer.
+ *                            Three paths: regex fast-path (high confidence),
+ *                            judge function (high confidence), heuristic
+ *                            quality fallback (low confidence).
+ * - `heuristicQualityScore(text)` — length + refusal-keyword-weighted
+ *                            0..1 score; fallback when regex can't decide.
+ * - `DEFAULT_FINAL_EXECUTION_SYSTEM` — shared system prompt constant kept
+ *                            here so techniques tests can import it without
+ *                            depending on the legacy attack-chain module
+ *                            (deleted in Chain v3 Task 11).
+ *
+ * Live consumers as of 2026-04-24:
+ *   - app/src/lib/chat/chain/orchestrator-score.ts (scoreResponse)
+ *   - app/src/lib/chat/godmode/** (scoreResponse)
+ *   - app/src/lib/chat/techniques/__tests__/anti-trigger.test.ts
+ *   - app/src/lib/chat/techniques/__tests__/prompt-style.test.ts
+ *   - app/src/lib/chat/techniques/__tests__/smoke/live.smoke.test.ts
+ *   - app/src/lib/chat/__tests__/attack-chain-refusal.test.ts
  */
 
 const PATTERNS: Array<{ pattern: RegExp; reason: string }> = [
