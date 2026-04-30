@@ -30,6 +30,12 @@
     lastChatModel.value = v;
   }
 
+  async function setActiveTool(tool: 'chain' | 'godmode') {
+    await repo.updateChat(chat.id, {
+      settings: { ...(chat.settings ?? {}), workspaceTab: tool, workspaceOpen: true }
+    });
+  }
+
   function focusTitle() {
     titleInput?.focus();
     titleInput?.select();
@@ -64,32 +70,32 @@
     aria-label="Chat title"
   />
   <ModelPickerV2 value={chat.modelQualifiedId} onChange={onModelChange} recentsKey="cryptex.chat.recentModels" triggerClass="text-xs text-muted-foreground border border-border/40 rounded-full px-3 py-1 hover:border-border/70 hover:text-foreground transition-colors" />
-  <button
-    type="button"
-    onclick={() => window.dispatchEvent(new CustomEvent('chat:open-workspace', { detail: { tab: 'chain' } }))}
-    aria-label="Attack Chain"
-    aria-pressed={workspaceOpen && workspaceTab === 'chain'}
-    title="Attack Chain — compose layered techniques"
-    class={workspaceOpen && workspaceTab === 'chain'
-      ? 'inline-flex h-7 items-center gap-1 rounded border border-primary/70 bg-primary/30 px-2 text-xs text-primary ring-1 ring-primary/50 shadow-sm transition-colors'
-      : 'inline-flex h-7 items-center gap-1 rounded border border-border/40 bg-transparent px-2 text-xs text-muted-foreground hover:border-border/70 hover:bg-muted/40 hover:text-foreground transition-colors'}
-  >
-    <Zap size={11} /> Chain
-  </button>
-  {#if GODMODE_ENGINE_ENABLED}
+  <div class="inline-flex rounded-md border border-border/40 bg-background/30 p-0.5 text-[11px]">
     <button
       type="button"
-      onclick={() => window.dispatchEvent(new CustomEvent('chat:open-workspace', { detail: { tab: 'godmode' } }))}
-      aria-label="Godmode"
-      aria-pressed={workspaceOpen && workspaceTab === 'godmode'}
-      title="Godmode — server engine ranks K DNAs, races, returns best"
-      class={workspaceOpen && workspaceTab === 'godmode'
-        ? 'inline-flex h-7 items-center gap-1 rounded border border-primary/70 bg-primary/30 px-2 text-xs text-primary ring-1 ring-primary/50 shadow-sm transition-colors'
-        : 'inline-flex h-7 items-center gap-1 rounded border border-border/40 bg-transparent px-2 text-xs text-muted-foreground hover:border-border/70 hover:bg-muted/40 hover:text-foreground transition-colors'}
+      onclick={() => setActiveTool('chain')}
+      aria-pressed={(chat.settings?.workspaceTab ?? 'chain') === 'chain'}
+      class={'inline-flex items-center gap-1 rounded px-2 py-1 transition ' +
+        ((chat.settings?.workspaceTab ?? 'chain') === 'chain'
+          ? 'bg-primary/15 text-primary'
+          : 'text-muted-foreground hover:text-foreground')}
     >
-      <Sparkles size={11} /> Godmode
+      <Zap size={11} /> Chain
     </button>
-  {/if}
+    {#if GODMODE_ENGINE_ENABLED}
+      <button
+        type="button"
+        onclick={() => setActiveTool('godmode')}
+        aria-pressed={chat.settings?.workspaceTab === 'godmode'}
+        class={'inline-flex items-center gap-1 rounded px-2 py-1 transition ' +
+          (chat.settings?.workspaceTab === 'godmode'
+            ? 'bg-primary/15 text-primary'
+            : 'text-muted-foreground hover:text-foreground')}
+      >
+        <Sparkles size={11} /> Godmode
+      </button>
+    {/if}
+  </div>
   <DropdownMenu.Root>
     <DropdownMenu.Trigger>
       {#snippet child({ props })}
