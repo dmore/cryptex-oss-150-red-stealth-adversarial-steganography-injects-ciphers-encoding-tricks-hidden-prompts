@@ -285,4 +285,26 @@ describe('runAttackSession', () => {
     expect(finished.finalAnswerConfidence).toBe(0);
     expect(finished.finalAnswerRationale).toMatch(/no target turns/);
   });
+
+  it('Scenario L — circuit breaker fires after 3 consecutive stream errors and aborts', async () => {
+    const gatewayChat = vi.fn();
+    gatewayChat.mockResolvedValue({ content: 'Refined opener.' });
+
+    const streamChat = vi.fn().mockImplementation(async function* () {
+      yield* (function* () { throw new Error('upstream 503'); })();
+    });
+
+    const events: OrchEvent[] = [];
+    for await (const e of runAttackSession(makeCtx({ maxAttempts: 9, gatewayChat, streamChat }))) events.push(e);
+
+    const orchCommits = events.filter((e) => e.type === 'orchestrator_turn_committed');
+    expect(orchCommits).toHaveLength(3);
+
+    expect(streamChat).toHaveBeenCalledTimes(3);
+
+    const finished = events.find((e) => e.type === 'finished') as Extract<OrchEvent, { type: 'finished' }>;
+    expect(finished).toBeDefined();
+    expect(finished.outcome).toBe('abandoned');
+    expect(finished.summary).toMatch(/3 consecutive provider stream errors/i);
+  });
 });

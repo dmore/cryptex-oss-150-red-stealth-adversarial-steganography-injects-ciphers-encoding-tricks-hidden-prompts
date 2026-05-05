@@ -28,6 +28,11 @@ export const DEFAULT_ROTATION_ORDER: readonly StrategyId[] = [
 /** Progress threshold for early-stop (finished extracted). */
 const EARLY_STOP_PROGRESS = 8;
 
+/** Engine aborts a run after this many consecutive turns with stream errors
+ *  (no target text produced). Avoids burning the whole turn budget when the
+ *  target provider is down or rate-limiting. */
+const MAX_CONSECUTIVE_STREAM_ERRORS = 3;
+
 /** Progress threshold below which we reset transcript on pivot. */
 const RESET_PROGRESS_THRESHOLD = 3;
 
@@ -65,6 +70,8 @@ export async function* runAttackSession(ctx: AttackSessionContext): AsyncGenerat
   // Cumulative transcript — declared up-front so the hoisted runExtraction
   // helper closes over it. Same array instance as Phase 1 below mutates.
   const transcript: AttackSessionTurn[] = [];
+
+  let consecutiveStreamErrors = 0;
 
   // Hoisted judgeClient — shared between per-iteration scoring and
   // termination-time extraction. The model id is ctx.judgeModelId so
@@ -217,6 +224,25 @@ export async function* runAttackSession(ctx: AttackSessionContext): AsyncGenerat
           }
           targetError = (err as Error)?.message ?? String(err);
           yield { type: 'error', code: 'target_stream', message: targetError, iteration };
+        }
+
+        // Circuit breaker — after 3 consecutive stream errors with no target
+        // text, the provider is likely down; abort instead of burning budget.
+        if (targetError) {
+          consecutiveStreamErrors++;
+          if (consecutiveStreamErrors >= MAX_CONSECUTIVE_STREAM_ERRORS) {
+            const ext = await runExtraction();
+            yield {
+              type: 'finished',
+              outcome: 'abandoned',
+              confidence: 0,
+              summary: `Aborted: ${MAX_CONSECUTIVE_STREAM_ERRORS} consecutive provider stream errors. Target may be down or rate-limited.`,
+              ...ext
+            };
+            return;
+          }
+        } else if (targetText) {
+          consecutiveStreamErrors = 0;
         }
 
         const targetTurn: AttackSessionTurn = {
