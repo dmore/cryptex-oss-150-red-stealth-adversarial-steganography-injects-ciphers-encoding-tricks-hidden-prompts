@@ -28,7 +28,7 @@ describe('registry search', () => {
     // Matches by category
     expect(search('mutate').some((t) => t.category === 'mutate')).toBe(true);
     // Matches by id
-    expect(search('skeleton_key').some((t) => t.id === 'skeleton_key')).toBe(true);
+    expect(search('many_shot').some((t) => t.id === 'many_shot')).toBe(true);
     // Matches by description word — "academic" appears in at least one description
     expect(search('academic').length).toBeGreaterThan(0);
   });

@@ -37,11 +37,11 @@ function makeCtx(overrides: Partial<LocalGodmodeContext> = {}): LocalGodmodeCont
 }
 
 describe('buildCandidatePool', () => {
-  it('combines mutators (>=20) and 12 strategies', () => {
+  it('combines mutators (>=18, post-R1) and 12 strategies', () => {
     const pool = buildCandidatePool();
     const muts = pool.filter((c) => c.kind === 'mutator');
     const strats = pool.filter((c) => c.kind === 'strategy');
-    expect(muts.length).toBeGreaterThanOrEqual(20);
+    expect(muts.length).toBeGreaterThanOrEqual(18);
     expect(strats.length).toBe(12);
   });
 });
@@ -51,7 +51,7 @@ describe('runLocalGodmode', () => {
     const gatewayChat = vi.fn();
     // 1) Planner pass — pick 3 (use ids that have localTemplates so no extra LLM round-trips)
     gatewayChat.mockResolvedValueOnce({
-      content: '{"picked":["pap_logical","skeleton_key","refusal_suppression"]}'
+      content: '{"picked":["pap_logical","pap_authority","many_shot"]}'
     });
     // 2) Three judge passes (one per candidate)
     gatewayChat.mockResolvedValueOnce({ content: '{"score":0.9,"rationale":"on-task"}' });
