@@ -1,6 +1,7 @@
 <script lang="ts">
   import { session } from '$lib/auth/session.svelte';
   import { featureFlags } from '$lib/config/featureFlags';
+  import { supabaseConfigStatus } from '$lib/auth/supabase';
   import { goto } from '$app/navigation';
   import { base } from '$app/paths';
   import Logo from '$lib/components/brand/Logo.svelte';
@@ -75,7 +76,9 @@
   }
 
   $effect(() => {
-    if (session.isSignedIn) void goto(`${base}/chat`);
+    // Only redirect once Supabase has finished hydrating; otherwise we may
+    // miss a stored session and force a re-login.
+    if (session.isReady && session.isSignedIn) void goto(`${base}/chat`);
   });
 </script>
 
@@ -103,6 +106,20 @@
         Sign in to continue to Cryptex.
       </p>
     </div>
+
+    {#if !supabaseConfigStatus.ok}
+      <div
+        role="alert"
+        class="w-full rounded-2xl border border-destructive/40 bg-destructive/5 p-4 text-xs"
+      >
+        <p class="mb-1 font-semibold text-destructive">Auth misconfigured at build time</p>
+        <p class="text-muted-foreground">{supabaseConfigStatus.detail}</p>
+        <p class="mt-2 text-muted-foreground">
+          Fix the env var in Dokploy → your service → <strong>Environment</strong>, then click <strong>Rebuild</strong> (not just Redeploy — Vite inlines these at build time).
+          See <a href="https://github.com/m4xx101/cryptex/blob/master/docs/DEPLOY-DOKPLOY-SUPABASE.md" class="underline hover:text-foreground">DEPLOY-DOKPLOY-SUPABASE.md</a>.
+        </p>
+      </div>
+    {/if}
 
     <div class="w-full rounded-2xl border border-border/60 bg-card/60 p-6 shadow-sm backdrop-blur-sm">
       <!-- Tab switcher -->

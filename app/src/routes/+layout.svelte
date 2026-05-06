@@ -1,6 +1,8 @@
 <script lang="ts">
   import '../app.css';
   import { onMount } from 'svelte';
+  import { page } from '$app/state';
+  import { base } from '$app/paths';
   import HeaderBar from '$lib/components/shell/HeaderBar.svelte';
   import TabRail from '$lib/components/shell/TabRail.svelte';
   import ToastHost from '$lib/components/shell/ToastHost.svelte';
@@ -15,6 +17,18 @@
 
   let { children } = $props();
   let historyOpen = $state(false);
+
+  // Auth-context routes are standalone — they have their own card layout and
+  // shouldn't show the global Tools rail or chat-mode chrome.
+  const isAuthRoute = $derived.by(() => {
+    const p = page.url?.pathname ?? '';
+    const trimmed = p.endsWith('/') ? p.slice(0, -1) : p;
+    return (
+      trimmed === `${base}/login` ||
+      trimmed === `${base}/signup` ||
+      trimmed.startsWith(`${base}/auth/`)
+    );
+  });
 
   onMount(() => {
     runLegacyMigration();
@@ -44,7 +58,7 @@
   <HeaderBar onopenHistory={() => (historyOpen = true)} />
 
   <main class="container pt-6 pb-20">
-    {#if chatMode.value === 'tools'}
+    {#if chatMode.value === 'tools' && !isAuthRoute}
       <div class="mb-6"><TabRail /></div>
     {/if}
     <div class="fade-in">

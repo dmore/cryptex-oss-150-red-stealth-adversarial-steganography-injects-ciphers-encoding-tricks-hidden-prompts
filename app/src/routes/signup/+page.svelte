@@ -82,7 +82,7 @@
   }
 
   $effect(() => {
-    if (session.isSignedIn) void goto(`${base}/chat`);
+    if (session.isReady && session.isSignedIn) void goto(`${base}/chat`);
   });
 </script>
 

@@ -4,12 +4,22 @@
   import type { DatasetFilters as Filters } from '$lib/dataset/queries';
   import { queryMessages } from '$lib/dataset/queries';
   import { session } from '$lib/auth/session.svelte';
+  import { featureFlags } from '$lib/config/featureFlags';
+  import { goto } from '$app/navigation';
+  import { base } from '$app/paths';
 
   import DatasetFiltersPanel from '$lib/components/dataset/DatasetFilters.svelte';
   import DatasetTable from '$lib/components/dataset/DatasetTable.svelte';
   import DatasetPreview from '$lib/components/dataset/DatasetPreview.svelte';
   import BulkActionsBar from '$lib/components/dataset/BulkActionsBar.svelte';
   import ExportMenu from '$lib/components/dataset/ExportMenu.svelte';
+
+  // Auth gate: dataset shows chat-derived rows; same gate as /chat/+layout.
+  $effect(() => {
+    if (featureFlags.authEnabled && session.isReady && !session.isSignedIn) {
+      void goto(`${base}/login`, { replaceState: true });
+    }
+  });
 
   // Filter state
   let filters = $state<Filters>({});

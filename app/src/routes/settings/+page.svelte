@@ -13,6 +13,7 @@
   import { consent, isAdSenseConfigured } from '$lib/stores/consent.svelte';
   import { ensureAdSenseState } from '$lib/ads/adsense.svelte';
   import ProvidersPanel from '$lib/components/settings/ProvidersPanel.svelte';
+  import SecurityPanel from '$lib/components/settings/SecurityPanel.svelte';
 
   function applyHash(hash: string) {
     if (!hash) return;
@@ -83,6 +84,9 @@
       Everything stays local. API keys are stored only in your browser and sent directly to the provider you configure.
     </p>
   </header>
+
+  <!-- Account security (set/change password) — only renders when signed in -->
+  <SecurityPanel />
 
   <!-- AI Providers -->
   <ProvidersPanel />

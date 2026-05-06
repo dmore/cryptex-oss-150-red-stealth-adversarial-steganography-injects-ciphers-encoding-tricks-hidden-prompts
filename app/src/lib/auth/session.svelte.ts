@@ -43,6 +43,11 @@ let _current = $state<CurrentUser | null>(
 );
 let _vaultKey = $state<CryptoKey | null>(null);
 let _session = $state<Session | null>(null);
+// Tracks whether Supabase has resolved the persisted session at least once.
+// Consumers (chat layout auth gate, login redirect effect) gate redirects on
+// this so a signed-in user reloading /chat doesn't briefly bounce through
+// /login while Supabase is still hydrating localStorage.
+let _ready = $state(!featureFlags.authEnabled);
 
 // Initialize Supabase session watcher once, browser-only.
 // SvelteKit modules can be imported during SSR / prerender; the init block must
@@ -57,7 +62,12 @@ if (browser && featureFlags.authEnabled && supabase) {
     _session = session;
     _current = shapeFromSession(session);
     if (!session) _vaultKey = null;
+    _ready = true;
   });
+  // Belt-and-suspenders timeout — if onAuthStateChange somehow fails to fire
+  // (e.g. Supabase service down), don't leave the UI hanging in "loading"
+  // forever. After 3 seconds, mark ready and let downstream show signed-out.
+  setTimeout(() => { _ready = true; }, 3000);
 }
 
 function shapeFromSession(s: Session | null): CurrentUser | null {
@@ -80,6 +90,10 @@ export const session = {
   // --- v2 API ------------------------------------------------------------
   get current() { return _current; },
   get isSignedIn() { return _current !== null && _current.id !== 'local'; },
+  /** True once Supabase has resolved its persisted session at least once
+   *  (or auth is disabled in this build). Use to defer redirects until the
+   *  hydration race settles. */
+  get isReady() { return _ready; },
   get vaultUnlocked() { return _vaultKey !== null; },
   get supabaseSession() { return _session; },
 
@@ -151,6 +165,31 @@ export const session = {
       redirectTo: `${window.location.origin}${base}/auth/callback`
     });
     if (error) throw error;
+  },
+
+  /** Set or change the signed-in user's password. Used both for users who
+   *  signed up via magic-link / OAuth (no password set yet) and for users
+   *  changing an existing password. Supabase enforces server-side checks
+   *  (min length, breach lists if configured); we add basic client checks. */
+  async updatePassword(newPassword: string): Promise<void> {
+    if (!supabase) throw new Error('Auth not enabled');
+    if (!newPassword || newPassword.length < 8) {
+      throw new Error('Password must be at least 8 characters.');
+    }
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) throw error;
+  },
+
+  /** Re-authenticate against the current user's email + a known password
+   *  before sensitive operations (e.g. password change). Supabase doesn't
+   *  expose a dedicated "verify password" endpoint — signInWithPassword
+   *  acts as one when called with the current account's email. */
+  async verifyCurrentPassword(currentPassword: string): Promise<void> {
+    if (!supabase) throw new Error('Auth not enabled');
+    const email = _current?.email;
+    if (!email) throw new Error('No email on session — cannot verify.');
+    const { error } = await supabase.auth.signInWithPassword({ email, password: currentPassword });
+    if (error) throw new Error('Current password is incorrect.');
   },
 
   async signOut(): Promise<void> {
