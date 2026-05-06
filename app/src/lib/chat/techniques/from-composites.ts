@@ -16,8 +16,8 @@ import { unwrap } from '$lib/ai/prompt-scaffold';
  * application with a custom ordering.
  */
 
-const LAYERED_CHAIN = ['academic_framing', 'perplexity_raise', 'structural_variation'];
-const MULTI_LAYER_CHAIN = ['roleplay', 'hypothetical_world', 'prefix_injection'];
+const LAYERED_CHAIN = ['academic_framing', 'perplexity_raise', 'circumlocution'];
+const MULTI_LAYER_CHAIN = ['roleplay', 'hypothetical_world', 'red_team_persona'];
 
 /**
  * base64_smuggle system prompt. Frames the assistant as a decoder so the
