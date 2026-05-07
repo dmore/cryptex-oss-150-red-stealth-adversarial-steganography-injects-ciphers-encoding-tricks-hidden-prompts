@@ -101,7 +101,9 @@ RUN set -e ; \
     HASHES="$(tr -d '\n\r' < $HASH_FILE)" ; \
     awk -v hashes="$HASHES" '{ gsub(/__CSP_SCRIPT_HASHES__/, hashes); print }' /build/nginx.conf > /build/nginx.conf.new ; \
     mv /build/nginx.conf.new /build/nginx.conf ; \
-    grep -c "sha256-" /build/nginx.conf | awk '{ if ($1 < 1) { print "[cryptex-build] FATAL: substituted nginx.conf has no sha256 hashes" > "/dev/stderr" ; exit 1 } print "[cryptex-build] CSP hashes substituted: " $1 " sha256 token(s) in nginx.conf" }' ; \
+    SHA_COUNT="$(grep -oE "'sha256-[A-Za-z0-9+/=]+'" /build/nginx.conf | sort -u | wc -l)" ; \
+    if [ "$SHA_COUNT" -lt 1 ]; then echo "[cryptex-build] FATAL: substituted nginx.conf has no sha256 hashes" >&2 ; exit 1 ; fi ; \
+    echo "[cryptex-build] CSP hashes substituted: $SHA_COUNT unique sha256 token(s) in nginx.conf" ; \
     rm "$HASH_FILE"
 
 # Strip source-map and other non-runtime bits to shrink the image.
