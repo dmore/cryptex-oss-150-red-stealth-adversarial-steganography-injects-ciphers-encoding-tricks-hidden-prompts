@@ -14,6 +14,8 @@ function ownerId(): string { return currentOwnerId(); }
 
 function backfillV3(r: AttackSessionRow): AttackSessionRow {
   // Tolerant read for pre-v3 rows: missing fields get defaults.
+  // Also backfills v4 fields so callers always read a fully-populated
+  // engineVersion (defaulting to 'v3' for legacy rows).
   return {
     ...r,
     dossier: r.dossier ?? null,
@@ -21,7 +23,9 @@ function backfillV3(r: AttackSessionRow): AttackSessionRow {
     strategyRotation: (r.strategyRotation && r.strategyRotation.length > 0)
       ? r.strategyRotation
       : strategyIds(),
-    turnsPerStrategy: typeof r.turnsPerStrategy === 'number' ? r.turnsPerStrategy : 3
+    turnsPerStrategy: typeof r.turnsPerStrategy === 'number' ? r.turnsPerStrategy : 3,
+    // v4 backfill — Dexie schema is unchanged, only payload fields are added.
+    engineVersion: r.engineVersion ?? 'v3'
   };
 }
 

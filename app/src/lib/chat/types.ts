@@ -26,6 +26,59 @@ export interface AttackChainConfig {
   judgeModelId?: string;
   /** v3-three-model: per-chat dismissal of the orchestrator-fallback tip. */
   recommendedTipDismissed?: boolean;
+
+  // ── v4 (Phase 1+ scaffolding — runtime currently routes to v3 stub) ────
+  /** Which chain engine to use. 'v3' = legacy stylistic rotator,
+   *  'v4' = PAIR/TAP/Crescendo attacker-judge loop. Default behaviour
+   *  treats missing as 'v3' until phase 9 flips the default. */
+  engineVersion?: 'v3' | 'v4';
+  /** v4 mode selection. Ignored when engineVersion !== 'v4'. */
+  engineMode?: 'pair' | 'tap' | 'crescendo';
+  /** Hard cap on total target-model calls per run. Enforced gateway-side. */
+  maxTargetQueries?: number;
+  /** Hard cap on estimated USD cost per run. Enforced gateway-side. */
+  maxBudgetUsd?: number;
+  /** Hard cap on wall-clock seconds per run. */
+  maxWallclockSec?: number;
+  /** Number of parallel attacker streams (race + early-stop). Clamped 1..3. */
+  streamCount?: number;
+  /** Booster: prefix the harmful request with a benign reasoning task to
+   *  exploit chain-of-thought hijack vulnerability. */
+  enableCotHijack?: boolean;
+  /** Booster: emit `bestOfN` lightly-augmented variants per attacker prompt
+   *  and keep the highest-scoring response. */
+  enableBestOfN?: boolean;
+  /** Variant count for Best-of-N. Clamped 1..16. Default 3. */
+  bestOfN?: number;
+}
+
+// ── v4 engine artifacts persisted on AttackSessionRow ────────────────────
+
+/** A single judge cascade output for one target turn (v4). */
+export interface JudgeStageResult {
+  /** Index of the target turn this judge round scored. */
+  turnIdx: number;
+  /** Stage 1: did the model refuse / safety-deflect? */
+  refused: boolean;
+  /** Stage 2: 0..10 substantive jailbreak score (8+ = success). */
+  jailbreakScore: number;
+  /** Short rationale from the judge — surfaced in the UI. */
+  reasoning: string;
+}
+
+/** A node in the TAP search tree (v4). */
+export interface AttackTreeNode {
+  id: string;
+  parentId: string | null;
+  depth: number;
+  /** Attacker's candidate prompt. */
+  prompt: string;
+  /** Persona used at this node. */
+  persona?: string;
+  /** Score given to this node's resulting target response, if it was queried. */
+  score?: number;
+  /** Why this branch was pruned, if it was. */
+  prunedReason?: 'off_topic' | 'low_score' | 'budget';
 }
 
 /**
@@ -328,6 +381,31 @@ export interface AttackSessionRow {
   finalAnswerConfidence?: number | null;
   /** v3.1: short prose rationale from the judge for the extraction decision. */
   finalAnswerRationale?: string | null;
+
+  // ── v4 fields (Phase 1 — Dexie schema unchanged; payload extends) ──────
+  /** Engine that produced this row. Missing → treat as 'v3' (backfill). */
+  engineVersion?: 'v3' | 'v4';
+  /** v4 mode used for this run, if engineVersion === 'v4'. */
+  engineMode?: 'pair' | 'tap' | 'crescendo';
+  /** Effective budget caps applied to this run. */
+  budget?: {
+    maxQueries: number;
+    maxUsd: number;
+    maxWallclockMs: number;
+  };
+  /** Estimated total USD cost across attacker + target + judge calls. */
+  costEstimateUsd?: number;
+  /** Number of parallel streams the run used. */
+  streamCount?: number;
+  /** Per-turn cascaded judge results (v4 only). */
+  judgeStages?: JudgeStageResult[];
+  /** Tree-search trace (v4 TAP only). */
+  treeNodes?: AttackTreeNode[];
+  /** Best-of-N augmentation stats, if enableBestOfN was true. */
+  augmentationStats?: {
+    variantsTried: number;
+    bestScore: number;
+  };
 }
 
 /** Events emitted by runAttackSession's async generator. The UI consumes these
@@ -354,4 +432,37 @@ export type OrchEvent =
   | { type: 'dossier_completed'; citationCount: number; dossier: string; citations: string[] }
   | { type: 'dossier_failed'; reason: string }
   | { type: 'strategy_started'; iteration: number; strategyId: StrategyId; stepBudget: number }
-  | { type: 'strategy_pivoted'; iteration: number; from: StrategyId; to: StrategyId; reset: boolean };
+  | { type: 'strategy_pivoted'; iteration: number; from: StrategyId; to: StrategyId; reset: boolean }
+  // ── v4 additions (Phase 1 scaffolding — fired by chain-v4 engine) ──────
+  // All v4 events are additive; v3 emits none of them. Existing UI
+  // handlers should use a default branch to no-op on unknown event types.
+  | {
+      type: 'judge_scored';
+      turnIdx: number;
+      refused: boolean;
+      score: number; // 0..10
+      reasoning: string;
+    }
+  | {
+      type: 'branch_pruned';
+      reason: 'off_topic' | 'low_score' | 'budget';
+      nodeId: string;
+    }
+  | {
+      type: 'augmentation_emitted';
+      variant: string; // human-readable label, e.g. "BoN#3 (caps+typo)"
+      score: number;
+    }
+  | {
+      type: 'budget_exhausted';
+      metric: 'queries' | 'usd' | 'time';
+    }
+  | {
+      type: 'stream_started';
+      streamId: number; // 0-indexed, must be < streamCount
+    }
+  | {
+      type: 'stream_finished';
+      streamId: number;
+      outcome: 'extracted' | 'partial' | 'abandoned';
+    };
