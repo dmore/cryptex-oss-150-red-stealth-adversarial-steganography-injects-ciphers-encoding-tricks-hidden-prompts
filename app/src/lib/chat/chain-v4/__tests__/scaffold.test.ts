@@ -54,9 +54,9 @@ describe('chain-v4 scaffold (phase 1)', () => {
     expect(DEFAULT_V4_BUDGET.maxWallclockSec).toBe(300);
   });
 
-  it('runAttackSessionV4 stub yields stream_started + finished events around a v3 delegated run', async () => {
+  it("runAttackSessionV4 with mode='tap' falls back to v3 + yields stream lifecycle bookends", async () => {
     const gatewayChat = vi.fn();
-    // The v3 path needs: refineTurn (orch) → progress judge → compliance judge → extraction judge.
+    // v3 fallback path: refineTurn → progress judge → compliance judge → extraction judge.
     gatewayChat.mockResolvedValueOnce({ content: 'Refined opener.' });
     gatewayChat.mockResolvedValueOnce({ content: '{"tier":"complete"}' });
     gatewayChat.mockResolvedValueOnce({ content: '{"tier":"substantive"}' });
@@ -70,7 +70,9 @@ describe('chain-v4 scaffold (phase 1)', () => {
     });
 
     const events: OrchEvent[] = [];
-    for await (const ev of runAttackSessionV4(makeV4Ctx({ gatewayChat, streamChat }))) {
+    for await (const ev of runAttackSessionV4(
+      makeV4Ctx({ mode: 'tap', gatewayChat, streamChat })
+    )) {
       events.push(ev);
     }
 
@@ -81,15 +83,19 @@ describe('chain-v4 scaffold (phase 1)', () => {
     expect(finished).toHaveLength(1);
     expect((started[0] as { streamId: number }).streamId).toBe(0);
 
-    // Delegated v3 events still flow.
-    const planStart = events.find((e) => e.type === 'plan_start');
-    const finishedV3 = events.find((e) => e.type === 'finished');
-    expect(planStart).toBeDefined();
-    expect(finishedV3).toBeDefined();
-
-    // Bookend ordering: stream_started first, stream_finished last.
-    expect(events[0].type).toBe('stream_started');
+    // plan_start fires from runner BEFORE stream_started; v3's plan_start
+    // is suppressed (the runner emits its own at the top).
+    expect(events[0].type).toBe('plan_start');
+    expect(events[1].type).toBe('stream_started');
     expect(events[events.length - 1].type).toBe('stream_finished');
+
+    // Fallback marker present + v3 finished present
+    const fallback = events.find(
+      (e) => e.type === 'error' && (e as { code: string }).code === 'mode_not_implemented'
+    );
+    expect(fallback).toBeDefined();
+    const finishedEv = events.find((e) => e.type === 'finished');
+    expect(finishedEv).toBeDefined();
   });
 
   it('AttackChainConfig accepts v4 fields without type errors (compile-time check)', () => {

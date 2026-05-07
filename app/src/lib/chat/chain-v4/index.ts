@@ -23,6 +23,7 @@ import {
   type AttackSessionContext
 } from '../chain/orchestrator';
 import type { ChainV4Context } from './types';
+import { runPairLoop } from './pair';
 
 export type { ChainV4Context };
 export {
@@ -33,10 +34,9 @@ export {
 } from './types';
 
 /**
- * Build a v3 AttackSessionContext from a v4 ChainV4Context. The mapping
- * is direct for the shared fields; v4-specific knobs are silently
- * ignored by the v3 stub. Phase 3+ replaces this with the real PAIR
- * engine and stops calling v3 entirely for v4 runs.
+ * Build a v3 AttackSessionContext from a v4 ChainV4Context. Used as a
+ * fallback for modes that aren't implemented yet (TAP, Crescendo until
+ * phases 4 and 5).
  */
 function v4CtxToV3(ctx: ChainV4Context): AttackSessionContext {
   return {
@@ -45,9 +45,6 @@ function v4CtxToV3(ctx: ChainV4Context): AttackSessionContext {
     orchestratorModelId: ctx.orchestratorModelId,
     judgeModelId: ctx.judgeModelId,
     targetModelLabel: ctx.targetModelLabel,
-    // v3 used `maxAttempts` for the total turn budget. Map it from v4's
-    // maxQueries cap so users who flip to v4 don't accidentally see
-    // unbounded runs while modes are stubbed.
     maxAttempts: ctx.budget.maxQueries,
     mainChatHistory: ctx.mainChatHistory,
     signal: ctx.signal,
@@ -57,22 +54,42 @@ function v4CtxToV3(ctx: ChainV4Context): AttackSessionContext {
 }
 
 /**
- * Phase 1 stub. Yields stream_started, delegates to v3, yields
- * stream_finished. Phase 3+ replaces internals with real PAIR/TAP/
- * Crescendo loops keyed off `ctx.mode`.
+ * v4 entry point. Routes by `ctx.mode`:
+ *
+ *   pair       → real PAIR loop (phase 3, this commit)
+ *   tap        → v3 fallback until phase 4
+ *   crescendo  → v3 fallback until phase 5
+ *
+ * Yields `plan_start`, `stream_started`, the inner mode's events,
+ * `stream_finished`, in that order. Existing UI handlers consume the
+ * shared OrchEvent types unchanged.
  */
 export async function* runAttackSessionV4(
   ctx: ChainV4Context
 ): AsyncGenerator<OrchEvent> {
+  yield { type: 'plan_start', objective: ctx.objective, maxAttempts: ctx.budget.maxQueries };
+
   const streamId = 0;
   yield { type: 'stream_started', streamId };
 
   let outcome: 'extracted' | 'partial' | 'abandoned' = 'abandoned';
   try {
-    for await (const ev of runAttackSession(v4CtxToV3(ctx))) {
-      yield ev;
-      if (ev.type === 'finished') {
-        outcome = ev.outcome;
+    if (ctx.mode === 'pair') {
+      for await (const ev of runPairLoop(ctx, { streamId })) {
+        yield ev;
+        if (ev.type === 'finished') outcome = ev.outcome;
+      }
+    } else {
+      // tap / crescendo not yet implemented — fall back to v3 with a
+      // marker event so the user knows v4 didn't run the requested mode.
+      yield {
+        type: 'error',
+        code: 'mode_not_implemented',
+        message: `chain-v4 mode '${ctx.mode}' not yet implemented; falling back to v3`
+      };
+      for await (const ev of runAttackSession(v4CtxToV3(ctx))) {
+        yield ev;
+        if (ev.type === 'finished') outcome = ev.outcome;
       }
     }
   } finally {
