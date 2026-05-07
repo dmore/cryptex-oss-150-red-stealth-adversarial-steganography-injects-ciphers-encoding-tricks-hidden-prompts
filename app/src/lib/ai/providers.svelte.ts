@@ -79,16 +79,31 @@ function loadPersisted(): ProviderRecord[] | null {
 let _records = $state<ProviderRecord[]>(loadPersisted() ?? seedInitial());
 
 function persist(): void {
-  // In the signed-in vault path, persist a metadata-only mirror. The
-  // ciphertext lives in Supabase via storeBYOKKey() — written explicitly by
-  // addProvider / updateProvider when the apiKey actually changes (see
-  // those functions below). We do NOT call storeBYOKKey from persist() to
-  // avoid a write-amplification round-trip on every property tweak.
-  if (useVaultStorage()) {
-    trySetLS(STORAGE_KEY, JSON.stringify(_records.map(stripApiKey)));
-  } else {
-    trySetLS(STORAGE_KEY, JSON.stringify(_records));
-  }
+  // Always write the FULL record (apiKey included). localStorage acts as a
+  // write-ahead log: stripping the plaintext only happens AFTER a successful
+  // vault write via `purgeApiKeyFromMirror(rec)`.
+  //
+  // Why: a previous version stripped unconditionally for signed-in users,
+  // but if the vault encrypt step failed (network / vault locked / etc.),
+  // the apiKey would already be gone from localStorage and only live in
+  // _records (in-memory) — a single page reload would lose it. Worse, the
+  // legacy-keys migration prompt found nothing because persist had already
+  // run during ANY UI interaction (toggling enabled, blurring a field).
+  //
+  // The post-vault purge is opt-in per row, never blanket.
+  trySetLS(STORAGE_KEY, JSON.stringify(_records));
+}
+
+/**
+ * Strip the apiKey field for a single record from the localStorage mirror.
+ * Called only after `storeBYOKKey()` confirms the encrypted ciphertext is
+ * safely in the vault. The in-memory _records array keeps its apiKey for
+ * the current session so the gateway keeps working.
+ */
+function purgeApiKeyFromMirror(matcher: (rec: ProviderRecord) => boolean): void {
+  if (!useVaultStorage()) return;
+  const stripped = _records.map((r) => (matcher(r) ? stripApiKey(r) : r));
+  trySetLS(STORAGE_KEY, JSON.stringify(stripped));
 }
 
 // Public functions are synchronous and work in both SSR and browser environments.
@@ -142,6 +157,16 @@ export async function persistKeyToVault(
   } else {
     await storeBYOKKeyWithVaultKey(rec.id, instanceId, rec.apiKey, label);
   }
+  // Vault write succeeded → it's safe to remove the plaintext apiKey from
+  // the localStorage mirror. The in-memory _records keeps its apiKey for
+  // the current session so the gateway can keep using the key.
+  purgeApiKeyFromMirror((r) => {
+    if (r.id !== rec.id) return false;
+    if (r.id === 'openai-compat') {
+      return (r as { instanceId: string }).instanceId === instanceId;
+    }
+    return true;
+  });
 }
 
 export function addProvider(record: ProviderRecord): void {
@@ -259,6 +284,11 @@ export async function migrateLegacyKeysToVault(passphrase: string): Promise<numb
   try { parsed = JSON.parse(raw) as ProviderRecord[]; } catch { return 0; }
 
   let migrated = 0;
+  // Surface the LAST encryption error so the UI can show something more
+  // useful than the generic "No keys to migrate" when the issue is actually
+  // a vault write failure (network, RLS, schema). Plaintext is preserved
+  // by `persist()` either way — nothing is lost.
+  let lastError: Error | null = null;
   for (const rec of parsed) {
     if (!('apiKey' in rec) || typeof rec.apiKey !== 'string' || rec.apiKey.length === 0) continue;
     const instanceId = rec.id === 'openai-compat'
@@ -269,18 +299,32 @@ export async function migrateLegacyKeysToVault(passphrase: string): Promise<numb
       : rec.id;
     try {
       await storeBYOKKey(rec.id, instanceId, rec.apiKey, label, passphrase);
+      // Per-row strip — only the rows that successfully encrypted lose
+      // their plaintext mirror. Failed rows keep their plaintext so the
+      // user can retry without re-entering keys.
+      purgeApiKeyFromMirror((r) => {
+        if (r.id !== rec.id) return false;
+        if (r.id === 'openai-compat') {
+          return (r as { instanceId: string }).instanceId === instanceId;
+        }
+        return true;
+      });
       migrated++;
     } catch (err) {
+      lastError = err as Error;
       console.warn('[providers] migrateLegacyKeysToVault: failed to encrypt row', rec.id, err);
     }
   }
 
   if (migrated > 0) {
-    // Strip apiKey fields from the localStorage mirror now that they're
-    // safely encrypted in the vault. Reload _records from the vault so the
-    // UI shows the canonical post-migration state.
-    persist();
+    // Refresh in-memory records from the vault so any cross-device rows
+    // (e.g. keys added on a different browser) appear too.
     await hydrateFromVault();
+  } else if (lastError) {
+    // No rows encrypted but we DID attempt at least one — surface the
+    // failure so the UI can show "Could not write to the vault" instead
+    // of a confusing "no keys" message.
+    throw lastError;
   }
 
   return migrated;

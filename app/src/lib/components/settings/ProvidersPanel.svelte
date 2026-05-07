@@ -32,15 +32,21 @@
     ephemeral = next;
   }
 
-  // ----- Legacy plaintext-key migration prompt -----
+  // ----- Encrypt-keys-into-vault prompt -----
   // For signed-in users whose `cryptex.providers` localStorage value still
-  // carries plaintext apiKey strings (pre-encrypted-vault rollout), offer a
-  // one-click migration into the encrypted Supabase vault.
+  // carries plaintext apiKey strings, offer a one-click encrypt-into-vault
+  // upgrade. The card is framed as a positive feature (encrypt your keys),
+  // not a security warning.
   const useVault = $derived(featureFlags.authEnabled && session.isSignedIn);
   let showMigrate = $state(false);
   let migratePassphrase = $state('');
+  let migrateConfirm = $state('');
   let migrateError = $state<string | null>(null);
   let migrating = $state(false);
+  const passphraseValid = $derived(migratePassphrase.length >= 8);
+  const passphrasesMatch = $derived(
+    migratePassphrase.length > 0 && migratePassphrase === migrateConfirm
+  );
 
   $effect(() => {
     if (!useVault) {
@@ -60,7 +66,14 @@
   });
 
   async function runMigration() {
-    if (migratePassphrase.length === 0) return;
+    if (!passphraseValid) {
+      migrateError = 'Passphrase must be at least 8 characters.';
+      return;
+    }
+    if (!passphrasesMatch) {
+      migrateError = 'Passphrases do not match.';
+      return;
+    }
     migrating = true;
     migrateError = null;
     try {
@@ -69,11 +82,12 @@
         notify.success(`Encrypted ${n} key${n === 1 ? '' : 's'} into the vault`);
         showMigrate = false;
         migratePassphrase = '';
+        migrateConfirm = '';
       } else {
-        migrateError = 'No keys to migrate.';
+        migrateError = 'No plaintext keys found to encrypt. Reload the page if you just added a key.';
       }
     } catch (err) {
-      migrateError = (err as Error).message || 'Migration failed.';
+      migrateError = (err as Error).message || 'Could not write to the vault. Try again.';
     } finally {
       migrating = false;
     }
@@ -87,43 +101,92 @@
   </header>
 
   {#if showMigrate}
-    <div class="space-y-3 rounded-lg border border-amber-500/40 bg-amber-500/5 p-4">
-      <div class="flex items-center gap-2 text-sm font-medium">
-        <KeyRound size={14} class="text-amber-400" />
-        Move keys to encrypted vault
+    <!-- Encrypt-keys-into-vault upgrade card. Framed as a positive
+         feature, not a security warning. Matches the rest of the panel's
+         neutral/glass treatment instead of amber-warning chrome. -->
+    <div class="space-y-4 rounded-xl border border-border bg-card/60 p-5 shadow-sm">
+      <div class="flex items-start gap-3">
+        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <KeyRound size={16} />
+        </div>
+        <div class="space-y-1">
+          <h3 class="font-serif text-base font-semibold leading-tight">Encrypt your provider keys</h3>
+          <p class="text-xs leading-relaxed text-muted-foreground">
+            Your API keys are stored in plain text on this device. Encrypt them
+            with a passphrase to lock the keys behind your master phrase — only
+            ciphertext leaves your browser, the encrypted vault never sees the
+            plaintext. Use the same passphrase to unlock keys on any device
+            where you're signed in.
+          </p>
+        </div>
       </div>
-      <p class="text-xs text-muted-foreground">
-        Your provider API keys are currently stored as plaintext in this browser's
-        local storage. Encrypting them with a passphrase moves the ciphertext to
-        your Supabase account; the server never sees plaintext. You'll need this
-        passphrase the next time you sign in on a fresh browser.
-      </p>
-      <input
-        type="password"
-        bind:value={migratePassphrase}
-        placeholder="New vault passphrase"
-        autocomplete="new-password"
-        class="w-full rounded-md border border-white/10 bg-black/30 px-3 py-1.5 font-mono text-xs"
-        onkeydown={(e) => { if (e.key === 'Enter') runMigration(); }}
-      />
+
+      <ul class="space-y-1.5 pl-12 text-[11px] text-muted-foreground">
+        <li class="flex items-start gap-2">
+          <span class="mt-1 inline-block h-1 w-1 shrink-0 rounded-full bg-primary"></span>
+          <span>End-to-end encrypted with PBKDF2 (600,000 iterations) + AES-GCM.</span>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="mt-1 inline-block h-1 w-1 shrink-0 rounded-full bg-primary"></span>
+          <span>Same passphrase unlocks every signed-in device.</span>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="mt-1 inline-block h-1 w-1 shrink-0 rounded-full bg-primary"></span>
+          <span>Required to use AI tools after sign-in. Keep it safe — there's no recovery.</span>
+        </li>
+      </ul>
+
+      <div class="space-y-2 pl-12">
+        <label class="flex flex-col gap-1.5 text-[11px]">
+          <span class="font-medium text-foreground">Vault passphrase</span>
+          <input
+            type="password"
+            bind:value={migratePassphrase}
+            placeholder="At least 8 characters"
+            autocomplete="new-password"
+            class="w-full rounded-lg border border-border/60 bg-background/60 px-3 py-2 text-sm shadow-inner focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+            onkeydown={(e) => { if (e.key === 'Enter' && passphrasesMatch) runMigration(); }}
+          />
+        </label>
+        <label class="flex flex-col gap-1.5 text-[11px]">
+          <span class="font-medium text-foreground">Confirm passphrase</span>
+          <input
+            type="password"
+            bind:value={migrateConfirm}
+            placeholder="Repeat passphrase"
+            autocomplete="new-password"
+            class="w-full rounded-lg border border-border/60 bg-background/60 px-3 py-2 text-sm shadow-inner focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+            onkeydown={(e) => { if (e.key === 'Enter' && passphrasesMatch) runMigration(); }}
+          />
+          {#if migrateConfirm.length > 0 && !passphrasesMatch}
+            <span class="text-[11px] text-destructive">Passphrases don't match.</span>
+          {/if}
+        </label>
+      </div>
+
       {#if migrateError}
-        <p class="text-xs text-destructive">{migrateError}</p>
+        <p
+          role="alert"
+          class="ml-12 rounded-md border border-destructive/30 bg-destructive/10 p-2 text-[11px] text-destructive"
+        >{migrateError}</p>
       {/if}
-      <div class="flex justify-end gap-2">
+
+      <div class="flex flex-wrap items-center justify-end gap-2 border-t border-border/40 pt-3">
         <button
           type="button"
-          class="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
-          onclick={() => { showMigrate = false; }}
+          class="px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          onclick={() => { showMigrate = false; migratePassphrase = ''; migrateConfirm = ''; }}
         >
           Not now
         </button>
         <button
           type="button"
-          class="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+          class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           onclick={runMigration}
-          disabled={migrating || migratePassphrase.length === 0}
+          disabled={migrating || !passphraseValid || !passphrasesMatch}
         >
-          {migrating ? 'Encrypting…' : 'Encrypt and move'}
+          <KeyRound size={12} />
+          {migrating ? 'Encrypting…' : 'Encrypt my keys'}
         </button>
       </div>
     </div>

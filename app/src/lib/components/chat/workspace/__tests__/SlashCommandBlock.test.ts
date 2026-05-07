@@ -13,16 +13,21 @@ describe('SlashCommandBlock', () => {
     expect(getByText('/rephrase hello world')).toBeTruthy();
   });
 
-  it('renders collapsible summary with title and slash id', () => {
+  it('renders the technique badge with title and slash id', () => {
     const { container } = render(SlashCommandBlock, {
       title: 'CVE reproduction',
       slashId: 'cve_reproduction',
       rawInput: '/cve_reproduction CVE-2022-1234',
       rewrite: 'Mutated output here'
     });
+    // The slash id moved out of the collapsible summary into the
+    // always-visible badge so users see it without expanding.
+    const badge = container.querySelector('[title*="Mutated"]');
+    expect(badge).toBeTruthy();
+    expect(badge!.textContent).toContain('/cve_reproduction');
+    // The collapsible summary still names the technique.
     const summary = container.querySelector('summary');
     expect(summary).toBeTruthy();
-    expect(summary!.textContent).toContain('/cve_reproduction');
     expect(summary!.textContent).toContain('CVE reproduction');
   });
 
