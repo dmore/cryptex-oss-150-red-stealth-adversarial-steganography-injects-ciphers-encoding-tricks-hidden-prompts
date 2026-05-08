@@ -109,7 +109,7 @@
       </div>
       <div class="font-serif text-[14px]">Tools deep-dive</div>
       <p class="mt-0.5 text-[11px] text-muted-foreground">
-        162 transforms, decoder, encoder pipelines.
+        159 transforms, decoder, encoder pipelines.
       </p>
     </a>
     <a

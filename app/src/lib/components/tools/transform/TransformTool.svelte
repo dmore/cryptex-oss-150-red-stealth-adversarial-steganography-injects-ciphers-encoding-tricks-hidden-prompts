@@ -118,7 +118,7 @@
           'Star a transform to pin it to Favorites.',
           'Some transforms have options — they expand below the tile.'
         ]}
-        note="All 162 transforms run in your browser — no network calls."
+        note="All 159 transforms run in your browser — no network calls."
       />
     </div>
     <p class="text-muted-foreground max-w-2xl text-sm sm:text-base">

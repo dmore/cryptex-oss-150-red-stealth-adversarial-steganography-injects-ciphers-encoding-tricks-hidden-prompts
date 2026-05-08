@@ -56,7 +56,7 @@
       Cryptex is a static site. There is no server-side database that records your activity. Specifically:
     </p>
     <ul class="space-y-1.5 text-sm leading-relaxed text-muted-foreground">
-      <li>• Text you encode, decode, transform, or run through any of the 162 transformers — stays in your browser.</li>
+      <li>• Text you encode, decode, transform, or run through any of the 159 transformers — stays in your browser.</li>
       <li>• Prompts you mutate via PromptCraft / AntiClassifier — stays in your browser; the LLM call goes directly to your configured provider.</li>
       <li>• API keys you paste into Settings — stored only in your browser's <code class="rounded bg-muted/40 px-1 py-0.5 font-mono">localStorage</code>. Never transmitted to us.</li>
       <li>• Workbench results — ephemeral; never transmitted.</li>

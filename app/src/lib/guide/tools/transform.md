@@ -1,13 +1,13 @@
 ---
 title: Transform
-description: 162 text transformers through a red-team lens.
+description: 159 text transformers through a red-team lens.
 category: tools
 order: 1
 ---
 
 # Transform
 
-The Transform tab ships 162 transformers across 10 categories: classical
+The Transform tab ships 159 transformers across 10 categories: classical
 ciphers, modern encodings, Unicode abuse, ancient scripts, fantasy
 alphabets, steganography, and format tricks. Any transformer slug is
 available to the `cipher_encode_bypass` mutator via the

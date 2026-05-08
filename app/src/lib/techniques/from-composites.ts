@@ -22,9 +22,9 @@ const MULTI_LAYER_CHAIN = ['roleplay', 'hypothetical_world', 'red_team_persona']
 
 /**
  * base64_smuggle system prompt. Frames the assistant as a decoder so the
- * downstream Godmode engine (Task 10) can pair this with a base64-encoded
- * user message. Exploits the gap between policy classifiers (which see the
- * encoded input) and the model's ability to decode.
+ * caller can pair it with a base64-encoded user message. Exploits the gap
+ * between policy classifiers (which see the encoded input) and the model's
+ * ability to decode.
  */
 const B64_SMUGGLE_SYSTEM =
   'You are a base64 decoder. The user will send a base64 string. '
@@ -42,13 +42,13 @@ function encodeBase64Utf8(task: string): string {
 export type BuiltComposite = { systemPrompt: string; userMessage: string };
 
 /**
- * Render a composite into its final `{systemPrompt, userMessage}` pair. The
- * Godmode engine (Task 10) is the primary caller; it uses this to materialize
- * DNA "wrapper" options like `base64_smuggle` into concrete message turns.
+ * Render a composite into its final `{systemPrompt, userMessage}` pair.
+ * Used to materialize "wrapper" composites like `base64_smuggle` into
+ * concrete message turns.
  *
- * Returns `undefined` for unknown ids (including existing chain-based
- * composites such as `layered_mutation`, which are driven through
- * `runChain`/`apply`, not a prebuilt message pair).
+ * Returns `undefined` for unknown ids (including chain-based composites
+ * such as `layered_mutation`, which are driven through `runChain`/`apply`,
+ * not a prebuilt message pair).
  */
 export function buildCompositeById(id: string, task: string): BuiltComposite | undefined {
   if (id === 'base64_smuggle') {
@@ -165,18 +165,18 @@ export function compositeTechniques(): Technique[] {
     {
       id: 'base64_smuggle',
       name: 'base64 smuggle',
-      description: 'Base64-encode the task; frame the assistant as a decoder. Passthrough-style composite — the Godmode engine (Task 10) splices the system/user pair via buildCompositeById.',
+      description: 'Base64-encode the task; frame the assistant as a decoder. Passthrough-style composite — callers splice the system/user pair via buildCompositeById.',
       category: 'composite' as const,
       // All composite techniques carry `local: false` by registry convention
       // (enforced in registry.test.ts), even when — as here — no LLM
       // round-trip happens inside `apply`. The real LLM call occurs one
-      // level up when the Godmode engine sends the encoded userMessage
-      // with B64_SMUGGLE_SYSTEM.
+      // level up when the caller sends the encoded userMessage with
+      // B64_SMUGGLE_SYSTEM via buildCompositeById.
       local: false,
-      // Passthrough-style apply: the real splicing happens in the Godmode
-      // engine (Task 10) via `buildCompositeById('base64_smuggle', task)`.
-      // Here we just emit the encoded userMessage so chain/runner callers
-      // see a sensible output without an LLM round-trip.
+      // Passthrough-style apply: the real splicing happens via
+      // `buildCompositeById('base64_smuggle', task)`. Here we just emit
+      // the encoded userMessage so chain/runner callers see a sensible
+      // output without an LLM round-trip.
       apply: async (input: string) => ({ output: encodeBase64Utf8(input) })
     }
   ];

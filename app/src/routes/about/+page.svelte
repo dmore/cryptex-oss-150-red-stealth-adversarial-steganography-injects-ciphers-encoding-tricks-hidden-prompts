@@ -17,7 +17,6 @@
   import Shield from 'lucide-svelte/icons/shield';
   import Skull from 'lucide-svelte/icons/skull';
   import Target from 'lucide-svelte/icons/target';
-  import Database from 'lucide-svelte/icons/database';
   import Zap from 'lucide-svelte/icons/zap';
   import MessageSquare from 'lucide-svelte/icons/message-square';
   import Bolt from 'lucide-svelte/icons/zap';
@@ -25,11 +24,12 @@
   import Fingerprint from 'lucide-svelte/icons/fingerprint';
   import Globe from 'lucide-svelte/icons/globe';
   import Layers from 'lucide-svelte/icons/layers';
+  import ArrowLeftRight from 'lucide-svelte/icons/arrow-left-right';
 
   const mutatorCount = mutatorTechniques().length;
   const classifierCount = classifierTechniques().length;
   const compositeCount = compositeTechniques().length;
-  const toolsCount = 26;
+  const toolsCount = 25;
 
   const stats = [
     { label: 'Transforms',     value: transformerCount, icon: Wand,       blurb: 'Encodings, ciphers, Unicode lookalikes, ancient scripts.' },
@@ -46,22 +46,22 @@
     { icon: Bolt,         title: 'Browser-only',         body: 'Static site. Deploys anywhere; runs everywhere.' },
     { icon: Globe,        title: 'Multi-provider',       body: 'OpenRouter, Anthropic direct, OpenAI-compatible endpoints.' },
     { icon: Cpu,          title: 'Built to be audited',  body: 'Every transformer, mutator, and judge is inspectable.' },
-    { icon: Sparkles,     title: 'Production-grade',     body: 'Real apps deploy this. Auth, branded emails, deployment hardened.' }
+    { icon: Sparkles,     title: 'Production-grade',     body: 'Real apps deploy this. Static, hardened, MIT-licensed.' }
   ];
 
   const surfaces = [
-    { icon: Wand,         label: 'Transform',     desc: '162 encoders / decoders' },
+    { icon: Wand,         label: 'Transform',     desc: '159 encoders / decoders' },
     { icon: ScanSearch,   label: 'Decode',        desc: 'Universal cipher detector' },
     { icon: Smile,        label: 'Emoji',         desc: 'Variation-selector stego' },
+    { icon: ArrowLeftRight, label: 'Bijection',  desc: 'Alphapr cipher generator' },
     { icon: MessageSquare, label: 'Gibberish',    desc: 'Dictionary + removal puzzles' },
     { icon: Hash,         label: 'Tokenizer',     desc: 'BPE visualizer' },
     { icon: Bomb,         label: 'Tokenade',      desc: 'Token-cost stress payloads' },
     { icon: FlaskConical, label: 'Fuzzer',        desc: 'Mutation strategies' },
     { icon: Sparkles,     label: 'PromptCraft',   desc: 'All mutators, parallel variants' },
     { icon: Shield,       label: 'AntiClassifier', desc: 'Paraphrase rewrites' },
-    { icon: Skull,        label: 'Red-team labs', desc: '16 specialized workbenches' },
-    { icon: Target,       label: 'Benchmarks',    desc: 'HarmBench / StrongREJECT / JBB' },
-    { icon: Database,     label: 'Dataset',       desc: 'ShareGPT + raw JSONL export' }
+    { icon: Skull,        label: 'Red-team labs', desc: '15 specialized workbenches' },
+    { icon: Target,       label: 'Benchmarks',    desc: 'HarmBench / StrongREJECT / JBB' }
   ];
 </script>
 
@@ -157,7 +157,7 @@
   <section class="space-y-3">
     <div>
       <h2 class="font-serif text-lg tracking-tight">Surfaces</h2>
-      <p class="text-[12px] text-muted-foreground">Twenty-six tabs in the rail. One unified shell.</p>
+      <p class="text-[12px] text-muted-foreground">Twenty-five tabs in the rail. One unified shell.</p>
     </div>
     <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {#each surfaces as item}

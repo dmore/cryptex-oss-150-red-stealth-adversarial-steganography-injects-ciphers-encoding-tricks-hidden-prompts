@@ -8,8 +8,7 @@ export default defineConfig({
   // Expose both VITE_* and PUBLIC_* env vars to client code via
   // `import.meta.env`. Default Vite envPrefix is `VITE_` only; without this
   // override, every `import.meta.env.PUBLIC_*` reference resolves to
-  // undefined at build time even when the value is present in the process
-  // env. The Cryptex auth + godmode code uses PUBLIC_SUPABASE_URL etc.
+  // undefined at build time even when the value is present in the process env.
   envPrefix: ['VITE_', 'PUBLIC_'],
   resolve: {
     alias: {
@@ -25,8 +24,7 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: [
-      // Persistence + IDs
-      'dexie',
+      // IDs
       'ulid',
       // AI / provider packages
       'ai',
@@ -99,27 +97,17 @@ export default defineConfig({
       'lucide-svelte/icons/wrench',
       'lucide-svelte/icons/x',
       'lucide-svelte/icons/zap',
-      // Commit 4: new icons for chat workspace
       'lucide-svelte/icons/git-branch',
       'lucide-svelte/icons/square',
-      // Chat polish: avatar icons
       'lucide-svelte/icons/user',
-      // Markdown streaming renderer
-      'svelte-streamdown',
-      // Syntax highlighting
-      'shiki',
     ]
   },
   test: {
     include: ['src/**/*.{test,spec}.{js,ts}'],
     environment: 'jsdom',
     setupFiles: ['src/setupTests.ts'],
-    // Force single-fork execution so each test file gets its own
-    // fake-indexeddb instance. Without this, parallel workers share
-    // the global IndexedDB across files and Dexie tests clobber each
-    // other's `cryptex-chat` database mid-run, producing dozens of
-    // false failures. ~22s total runtime (vs ~60s parallel) — fine
-    // for CI.
+    // Single-fork execution keeps test-file isolation simple and
+    // avoids shared module-scope state between parallel workers.
     pool: 'forks',
     poolOptions: {
       forks: { singleFork: true }

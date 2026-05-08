@@ -15,7 +15,7 @@
  *   ac-model / ac-temperature  → cryptex.ac.model / cryptex.ac.temperature
  *   translate-model            → cryptex.translate.model
  *   pc-custom-langs            → cryptex.translate.customLangs
- *   EMOJI_COMPAT_CACHE         → (moved to IndexedDB in Phase 3; left alone here)
+ *   EMOJI_COMPAT_CACHE         → in-memory only (left alone here)
  */
 
 const FLAG = 'cryptex.migrated.v1';

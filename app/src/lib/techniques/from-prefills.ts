@@ -71,10 +71,9 @@ export function buildPrefillPairById(
 
 /**
  * Registry entries for the prefill category. Each technique is a passthrough
- * from the runner's perspective — prefills are consumed by the Godmode
- * engine (Task 10) which splices the pair in ahead of the real turn, not by
- * `runChain`. The `apply` here exists only to satisfy the `Technique`
- * contract; it returns the input untouched.
+ * from the runner's perspective — prefills are spliced in ahead of the real
+ * turn by the caller, not by `runChain`. The `apply` here exists only to
+ * satisfy the `Technique` contract; it returns the input untouched.
  */
 export function prefillTechniques(): Technique[] {
   return Object.keys(PAIRS).map((id) => ({

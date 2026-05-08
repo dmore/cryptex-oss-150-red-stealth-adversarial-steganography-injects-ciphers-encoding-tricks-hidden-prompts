@@ -111,7 +111,7 @@ services:
 
       # -------- OCI metadata --------
       - "org.opencontainers.image.title=Cryptex"
-      - "org.opencontainers.image.description=AI red-teamer's text lab — 162 transforms, steganography, BYOK AI rewrites."
+      - "org.opencontainers.image.description=AI red-teamer's text lab — 159 transforms, steganography, BYOK AI rewrites."
       - "org.opencontainers.image.source=https://github.com/m4xx101/cryptex"
       - "org.opencontainers.image.licenses=MIT"
 

@@ -1,17 +1,18 @@
 ---
 title: Red-team workbenches
-description: Sixteen specialised workbenches under /redteam — what each one does and when to reach for it.
+description: Fifteen specialised workbenches under /redteam — what each one does and when to reach for it.
 category: tools
 order: 11
 ---
 
 # Red-team workbenches
 
-Cryptex ships sixteen specialised workbenches under `/redteam/*`,
+Cryptex ships fifteen specialised workbenches under `/redteam/*`,
 each scoped to one specific class of attack or measurement. They
-share infrastructure with the Chain workspace (BYOK keys, persona
-memory, dataset persistence) but are surfaced separately so you can
-go straight to the right tool without setting up a chain run.
+share infrastructure with the rest of Cryptex — BYOK keys configured
+in Settings, results stored ephemerally in your browser — but each
+workbench is surfaced as its own focused tab so you can go straight
+to the right tool without any setup overhead.
 
 This page indexes them with practical guidance — what each does, when
 to use it, and what the input + output look like. For the underlying
