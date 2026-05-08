@@ -7,14 +7,9 @@
   import TabRail from '$lib/components/shell/TabRail.svelte';
   import ToastHost from '$lib/components/shell/ToastHost.svelte';
   import HistoryDrawer from '$lib/components/shell/HistoryDrawer.svelte';
-  import ConsentBanner from '$lib/ads/ConsentBanner.svelte';
-  import UpgradeModal from '$lib/components/billing/UpgradeModal.svelte';
   import { apply as applyTheme, watchSystemTheme } from '$lib/stores/theme.svelte';
   import { runLegacyMigration } from '$lib/stores/_migrate';
   import { initCatalogStore } from '$lib/ai/catalog.svelte';
-  import { ensureAdSenseState } from '$lib/ads/adsense.svelte';
-  import { ensureGaState, trackPageView } from '$lib/analytics/ga.svelte';
-  import { chatMode } from '$lib/stores/chatMode.svelte';
 
   let { children } = $props();
   let historyOpen = $state(false);
@@ -24,10 +19,6 @@
   //   - legal / content pages (privacy / terms / about) — read top-to-bottom
   //   - settings — has its own internal sidebar nav
   //   - guide — has its own internal sidebar nav
-  //
-  // /chat hides the rail via chatMode='chat' anyway.
-  // The ModePill (Chat / Tools toggle) is still visible everywhere — it's
-  // the cross-screen jump-back mechanism, NOT the TabRail.
   const hideTabRail = $derived.by(() => {
     const p = page.url?.pathname ?? '';
     const trimmed = p.endsWith('/') ? p.slice(0, -1) : p;
@@ -48,20 +39,7 @@
     runLegacyMigration();
     applyTheme();
     initCatalogStore();
-    ensureAdSenseState();
-    ensureGaState();
     return watchSystemTheme();
-  });
-
-  // SPA page-view tracking. SvelteKit doesn't reload between routes, so the
-  // GA gtag('config', ...) at script-init only fires once. We manually fire
-  // page_view on every pathname change. No-op when GA isn't configured / not
-  // consented.
-  $effect(() => {
-    const url = page.url;
-    if (!url) return;
-    // Use href so query/fragment are included for landing-page attribution.
-    trackPageView(url.href);
   });
 </script>
 
@@ -84,7 +62,7 @@
   <HeaderBar onopenHistory={() => (historyOpen = true)} />
 
   <main class="container pt-6 pb-20">
-    {#if chatMode.value === 'tools' && !hideTabRail}
+    {#if !hideTabRail}
       <div class="mb-6"><TabRail /></div>
     {/if}
     <div class="fade-in">
@@ -118,7 +96,5 @@
   </footer>
 
   <HistoryDrawer open={historyOpen} onclose={() => (historyOpen = false)} />
-  <ConsentBanner />
-  <UpgradeModal />
   <ToastHost />
 </div>

@@ -4,7 +4,7 @@ import { getClassifierSpecs } from '../from-classifier';
 import creative from '../modes/creative';
 import intelligent from '../modes/intelligent';
 import adaptive from '../modes/adaptive';
-import { DEFAULT_FINAL_EXECUTION_SYSTEM } from '../../chat/attack-chain-refusal';
+const DEFAULT_FINAL_EXECUTION_SYSTEM = 'You are a helpful assistant. Answer the user\'s request concretely and completely.';
 import type { TechniqueContext } from '../types';
 
 // At least one CAPITAL directive must appear in the hard-directive body.

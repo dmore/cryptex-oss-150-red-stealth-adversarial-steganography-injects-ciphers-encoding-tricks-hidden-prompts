@@ -19,7 +19,6 @@
   import Beaker from 'lucide-svelte/icons/flask-round';
   import GitCompare from 'lucide-svelte/icons/git-compare';
   import History from 'lucide-svelte/icons/history';
-  import Activity from 'lucide-svelte/icons/activity';
   import Wrench from 'lucide-svelte/icons/wrench';
   import FileText from 'lucide-svelte/icons/file-text';
   import Target from 'lucide-svelte/icons/target';
@@ -51,7 +50,6 @@
     { href: '/redteam/probe-lab',        label: 'Probe Lab',  icon: Beaker,        status: 'live' },
     { href: '/redteam/cross-model-diff', label: 'Cross-Diff', icon: GitCompare,    status: 'live' },
     { href: '/redteam/replayer',          label: 'Replayer',   icon: History,       status: 'live' },
-    { href: '/redteam/aggregation',       label: 'Aggregate',  icon: Activity,      status: 'live' },
     { href: '/redteam/tool-result-lab',   label: 'Tool Lab',    icon: Wrench,        status: 'live' },
     { href: '/redteam/indirect-injection', label: 'Indirect',   icon: FileText,      status: 'live' },
     { href: '/redteam/harmbench',          label: 'HarmBench',   icon: Target,        status: 'live' },

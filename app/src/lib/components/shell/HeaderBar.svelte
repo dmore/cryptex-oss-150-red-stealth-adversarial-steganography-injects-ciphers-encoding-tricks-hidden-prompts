@@ -5,7 +5,6 @@
   import Wordmark from '$lib/components/brand/Wordmark.svelte';
   import Logo from '$lib/components/brand/Logo.svelte';
   import ThemeToggle from './ThemeToggle.svelte';
-  import ModePill from './ModePill.svelte';
   import Settings from 'lucide-svelte/icons/settings';
   import History from 'lucide-svelte/icons/history';
   import HelpCircle from 'lucide-svelte/icons/circle-help';
@@ -36,12 +35,10 @@
   }
   let { onopenHistory }: Props = $props();
 
-  // Guide icon is context-aware: on /chat routes it opens the Chat guide
-  // landing entry; on a specific tool route it opens that tool's guide page;
-  // otherwise it opens the top-level /guide index.
+  // Guide icon is context-aware: on a specific tool route it opens that
+  // tool's guide page; otherwise it opens the top-level /guide index.
   const guideHref = $derived.by(() => {
     const path = $page.url.pathname;
-    if (path.startsWith(base + '/chat')) return `${base}/guide/chat-basics/`;
     const toolMap: Record<string, string> = {
       transforms: 'transform',
       promptcraft: 'promptcraft',
@@ -56,9 +53,7 @@
   });
 
   // Auth routes (/login, /signup, /auth/*) hide the heavy nav controls
-  // (history, guide, settings) so the page can focus on the form. The Chat /
-  // Tools mode pill still shows everywhere — it acts as a quick "get me out
-  // of this auth screen back to the app" shortcut.
+  // (history, guide, settings) so the page can focus on the form.
   const isAuthRoute = $derived.by(() => {
     const p = $page.url.pathname;
     const trimmed = p.endsWith('/') ? p.slice(0, -1) : p;
@@ -77,7 +72,6 @@
         <Logo size={26} />
         <Wordmark size="md" />
       </a>
-      <ModePill />
     </div>
 
     <div class="flex items-center gap-2">
