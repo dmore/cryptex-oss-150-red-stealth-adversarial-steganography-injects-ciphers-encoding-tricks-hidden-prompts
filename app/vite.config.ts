@@ -1,6 +1,6 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import { svelteTesting } from '@testing-library/svelte/vite';
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import path from 'node:path';
 
 export default defineConfig({
@@ -109,8 +109,6 @@ export default defineConfig({
     // Single-fork execution keeps test-file isolation simple and
     // avoids shared module-scope state between parallel workers.
     pool: 'forks',
-    poolOptions: {
-      forks: { singleFork: true }
-    }
+    fileParallelism: false
   }
 });

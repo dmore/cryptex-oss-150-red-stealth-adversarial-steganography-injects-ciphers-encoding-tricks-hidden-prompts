@@ -180,23 +180,6 @@ uv run cryptex-cli list
 
 ---
 
-## What's NOT in this OSS build
-
-If you came from the closed-source Cryptex, this is a clean fork without:
-
-- Multi-turn chat playground
-- Attack-chain orchestrator (engine-driven jailbreak loops)
-- Dataset Inspector + ShareGPT / JSONL export pipeline
-- Accounts, login, OAuth, password reset
-- Supabase integration + RLS migrations
-- Encrypted BYOK key vault (PBKDF2 + AES-GCM)
-- Godmode local engine
-- Billing, subscriptions, ads, analytics
-
-The OSS build is the pure technique toolkit. If you want to add any of those features, fork and build them.
-
----
-
 ## License
 
 MIT. See [`LICENSE`](LICENSE).
@@ -205,6 +188,6 @@ MIT. See [`LICENSE`](LICENSE).
 
 ## Credits
 
-Cryptex OSS is the open-source extraction of the closed-source Cryptex platform. The 159 transformer modules trace back to the original P4RS3LT0NGV3 project — the classical-cipher lineage and Unicode abuse catalog built up over that project's lifetime.
+Cryptex is a self-contained toolkit for adversarial text transformation and LLM red-teaming. All transforms run in-browser; AI-driven tools route through user-configured BYOK keys.
 
 Issues and PRs welcome at <https://github.com/m4xx101/cryptex-oss>.

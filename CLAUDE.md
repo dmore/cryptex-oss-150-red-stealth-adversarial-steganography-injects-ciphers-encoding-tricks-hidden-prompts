@@ -8,8 +8,6 @@ Cryptex OSS is a **SvelteKit 2 + Svelte 5 + shadcn-svelte static-site app** for 
 
 A Python CLI (`cryptex-cli`, managed with `uv`) shells out to Node to execute the canonical transformers in `src/transformers/`, so there is **one source of truth** for transforms — both the SvelteKit app and the CLI import the same 159 transformer files.
 
-This is the OSS extraction of a larger closed-source platform. The extraction design doc at `docs/superpowers/specs/2026-05-09-cryptex-oss-extraction-design.md` records what was removed and why.
-
 ## Commands
 
 ### Primary (SvelteKit app)
@@ -129,25 +127,10 @@ Build args plumbed through `Dockerfile` + `docker-compose.yml`:
 
 - `BASE_PATH` — subpath like `/cryptex`. Empty for root-domain deploys.
 
-That is the only build-time env in OSS. Auth, Supabase, ads, and analytics build args were removed in the OSS extraction.
+That is the only build-time env.
 
 ## When adding things
 
 - **New transformer**: create `src/transformers/<category>/<name>.js`, run `npm run build`, add coverage to `tests/test_universal.js`. Pick `priority` using the guide in `BaseTransformer.js`.
 - **New tool surface**: create the Svelte component in `app/src/lib/components/tools/<tool>/` (or `app/src/lib/components/redteam/<tool>/`), add the route at `app/src/routes/<tool>/+page.svelte`, and register the tab in `app/src/lib/components/shell/TabRail.svelte`.
 - **New mutator/classifier/composite**: add an entry to `app/src/lib/techniques/from-mutators.ts` (or the relevant sibling). It will surface in PromptCraft and the technique registry automatically.
-
-## Removed in OSS (for context)
-
-The OSS extraction stripped out:
-
-- Multi-turn chat playground (`/chat`, `/chat/:id`)
-- Dataset Inspector (`/dataset`) + ShareGPT/JSONL export pipeline
-- Auth pipeline (Supabase, OAuth, password reset, sessions, RLS)
-- Encrypted BYOK key vault (PBKDF2 + AES-GCM)
-- Attack-chain orchestrator + Crescendo escalation engine
-- Godmode local engine + edge-function client
-- Dexie/IndexedDB layer (chats, messages, attachments tables)
-- Billing, subscriptions, ads, Google Analytics
-
-If you're touching code that references any of these, check `docs/superpowers/specs/2026-05-09-cryptex-oss-extraction-design.md` first — it might be a stale reference that should be deleted.

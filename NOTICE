@@ -1,9 +1,7 @@
 Cryptex
 =======
 
-Cryptex is a fork of P4RS3LT0NGV3, a universal text encoder/decoder &
-steganography tool. The upstream project's license (AGPL-3.0) and copyright
-notices are preserved verbatim in LICENSE.
+Cryptex is a browser-only toolkit for adversarial text transformation
+and LLM red-teaming research. It is licensed under MIT (see LICENSE).
 
-Fork maintained by Deepak Mistry (m4xx) — https://m4xx.cfd
-Upstream: the P4RS3LT0NGV3 project (see git history for original commits).
+Maintained by Deepak Mistry (m4xx) — https://m4xx.cfd
