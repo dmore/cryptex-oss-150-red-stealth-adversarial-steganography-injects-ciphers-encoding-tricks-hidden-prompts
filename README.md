@@ -38,6 +38,8 @@ npm run build
 
 Prereqs: Node 20+, npm. Optional: [`uv`](https://docs.astral.sh/uv/) for the Python CLI.
 
+The dev server (`npm run dev`) ships a per-provider proxy at `/api/_proxy/<providerId>/...` so live `/v1/models` requests succeed for every supported provider regardless of CORS — production static deploys go direct (most providers' chat endpoints work; `/models` falls back to a curated per-preset list when CORS-blocked).
+
 ---
 
 ## Tools

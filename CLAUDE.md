@@ -83,6 +83,8 @@ Supported providers:
 
 Direct OpenAI / Google Gemini are **not supported** from the browser — no CORS. Users route those models through OpenRouter.
 
+In dev mode (`npm run dev`), `app/vite.config.ts` defines a `/api/_proxy/<providerId>` proxy that forwards model-list and chat-completions requests server-side to each provider — sidestepping browser CORS on `/v1/models`. The dev-vs-prod URL resolution lives in `app/src/lib/ai/proxy-url.ts` (`effectiveBaseURL` / `effectiveDirectBaseURL`) and is consumed by the three adapters. Production static deploys do not include the proxy; direct fetches go to provider URLs and the per-preset `defaultModels` lists in `presets.ts` cover any `/models` endpoints that block CORS.
+
 ### Technique registry
 
 `app/src/lib/techniques/registry.ts` aggregates everything available to the workbenches:

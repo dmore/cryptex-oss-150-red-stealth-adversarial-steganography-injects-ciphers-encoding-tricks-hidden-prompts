@@ -20,6 +20,40 @@ export default defineConfig({
     fs: {
       // allow importing from outside the app/ project root (transformers live in ../src)
       allow: [path.resolve(__dirname, '..')]
+    },
+    // Dev-only proxy that forwards `/api/_proxy/<providerId>/...` to each
+    // provider's API host server-side, sidestepping browser CORS on /v1/models
+    // (which most providers do NOT permit cross-origin) and on local servers
+    // that may not be configured for cross-origin access. The proxy strips
+    // the `/api/_proxy/<providerId>` prefix and passes the remaining path
+    // through. Production static deploys do not have this proxy — direct
+    // fetches go to the provider, /chat/completions still works for most
+    // providers via direct CORS, and /models falls back to per-preset lists.
+    // The `custom` preset is intentionally NOT proxied — we don't know the
+    // user-supplied URL ahead of time.
+    proxy: {
+      // Cloud OpenAI-compatible providers
+      '/api/_proxy/openai':     { target: 'https://api.openai.com',                    changeOrigin: true, secure: true,  rewrite: (p) => p.replace(/^\/api\/_proxy\/openai/,     '') },
+      '/api/_proxy/gemini':     { target: 'https://generativelanguage.googleapis.com', changeOrigin: true, secure: true,  rewrite: (p) => p.replace(/^\/api\/_proxy\/gemini/,     '') },
+      '/api/_proxy/groq':       { target: 'https://api.groq.com',                      changeOrigin: true, secure: true,  rewrite: (p) => p.replace(/^\/api\/_proxy\/groq/,       '') },
+      '/api/_proxy/together':   { target: 'https://api.together.xyz',                  changeOrigin: true, secure: true,  rewrite: (p) => p.replace(/^\/api\/_proxy\/together/,   '') },
+      '/api/_proxy/fireworks':  { target: 'https://api.fireworks.ai',                  changeOrigin: true, secure: true,  rewrite: (p) => p.replace(/^\/api\/_proxy\/fireworks/,  '') },
+      '/api/_proxy/deepinfra':  { target: 'https://api.deepinfra.com',                 changeOrigin: true, secure: true,  rewrite: (p) => p.replace(/^\/api\/_proxy\/deepinfra/,  '') },
+      '/api/_proxy/cerebras':   { target: 'https://api.cerebras.ai',                   changeOrigin: true, secure: true,  rewrite: (p) => p.replace(/^\/api\/_proxy\/cerebras/,   '') },
+      '/api/_proxy/deepseek':   { target: 'https://api.deepseek.com',                  changeOrigin: true, secure: true,  rewrite: (p) => p.replace(/^\/api\/_proxy\/deepseek/,   '') },
+      '/api/_proxy/sambanova':  { target: 'https://api.sambanova.ai',                  changeOrigin: true, secure: true,  rewrite: (p) => p.replace(/^\/api\/_proxy\/sambanova/,  '') },
+      '/api/_proxy/nvidia':     { target: 'https://integrate.api.nvidia.com',          changeOrigin: true, secure: true,  rewrite: (p) => p.replace(/^\/api\/_proxy\/nvidia/,     '') },
+      // Local providers (no CORS issue normally on localhost-to-localhost,
+      // but proxy makes it uniform and survives any CORS misconfig — e.g.
+      // Ollama requires OLLAMA_ORIGINS=* for direct browser access otherwise).
+      '/api/_proxy/ollama':     { target: 'http://localhost:11434',                    changeOrigin: true, secure: false, rewrite: (p) => p.replace(/^\/api\/_proxy\/ollama/,     '') },
+      '/api/_proxy/lmstudio':   { target: 'http://localhost:1234',                     changeOrigin: true, secure: false, rewrite: (p) => p.replace(/^\/api\/_proxy\/lmstudio/,   '') },
+      '/api/_proxy/vllm':       { target: 'http://localhost:8000',                     changeOrigin: true, secure: false, rewrite: (p) => p.replace(/^\/api\/_proxy\/vllm/,       '') },
+      '/api/_proxy/llamacpp':   { target: 'http://localhost:8080',                     changeOrigin: true, secure: false, rewrite: (p) => p.replace(/^\/api\/_proxy\/llamacpp/,   '') },
+      // OpenRouter and Anthropic — direct adapters but proxying anyway for
+      // a uniform dev experience.
+      '/api/_proxy/openrouter': { target: 'https://openrouter.ai',                     changeOrigin: true, secure: true,  rewrite: (p) => p.replace(/^\/api\/_proxy\/openrouter/, '') },
+      '/api/_proxy/anthropic':  { target: 'https://api.anthropic.com',                 changeOrigin: true, secure: true,  rewrite: (p) => p.replace(/^\/api\/_proxy\/anthropic/,  '') }
     }
   },
   optimizeDeps: {

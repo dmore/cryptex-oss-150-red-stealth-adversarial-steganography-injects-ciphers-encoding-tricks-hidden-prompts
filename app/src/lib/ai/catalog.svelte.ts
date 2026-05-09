@@ -22,13 +22,53 @@ const CACHE_KEY = 'cryptex.catalogCache.v2';
 const CACHE_TTL_MS = 60 * 60 * 1000;
 
 type Status = 'idle' | 'loading' | 'ready' | 'error';
+/**
+ * Per-provider catalog fetch status. Reported separately from the global
+ * Status so the UI can distinguish "live model list from upstream" (ok) vs
+ * "upstream blocked /models — using shipped fallback" (fallback) vs
+ * "upstream returned an unrecoverable error" (error). Used in Settings to
+ * show a small badge on each provider card.
+ */
+export type ProviderCatalogStatus = 'ok' | 'fallback' | 'error';
+export type ProviderCatalogStatuses = Record<string, ProviderCatalogStatus>;
+
 type CacheShape = { models: Model[]; fetchedAt: number };
 
 let status = $state<Status>('idle');
 let items = $state<Model[]>([]);
 let fetchedAt = $state<number | null>(null);
 let error = $state<string>('');
+let providerStatuses = $state<ProviderCatalogStatuses>({});
 let abortController: AbortController | null = null;
+
+/**
+ * Build the lookup key for a provider's status entry. For openrouter and
+ * anthropic the provider id is unique; openai-compat instances are keyed by
+ * `openai-compat:<instanceId>` so multiple instances each have their own
+ * status entry.
+ */
+export function providerStatusKey(p: { id: string; instanceId?: string }): string {
+  if (p.id === 'openai-compat' && p.instanceId) return `openai-compat:${p.instanceId}`;
+  return p.id;
+}
+
+/**
+ * Adapters call this from inside `fetchCatalog` to report whether the live
+ * `/v1/models` request succeeded, fell back to the per-preset default list,
+ * or errored entirely. The catalog reads it back into the reactive
+ * `providerStatuses` map after the fetch round-robin completes.
+ *
+ * Stored on a module-level Map keyed by providerStatusKey() so it works
+ * across the lazy import boundary between catalog.svelte.ts and the adapters.
+ */
+const _pendingStatuses = new Map<string, ProviderCatalogStatus>();
+
+export function reportCatalogStatus(
+  key: string,
+  status: ProviderCatalogStatus
+): void {
+  _pendingStatuses.set(key, status);
+}
 
 function loadCache(): CacheShape | null {
   if (!browser) return null;
@@ -46,22 +86,34 @@ function saveCache(models: Model[], ts: number): void {
 async function fetchAll(signal: AbortSignal): Promise<Model[]> {
   const providers = listProviders().filter((p) => p.enabled);
   const results: Model[] = [];
+  // Reset pending statuses; adapters re-populate during their fetchCatalog calls.
+  _pendingStatuses.clear();
   for (const p of providers) {
+    const key = providerStatusKey(p as { id: string; instanceId?: string });
     try {
       switch (p.id) {
         case 'openrouter': {
           const a = openrouterAdapter(p);
           results.push(...await a.fetchCatalog(signal));
+          // OpenRouter adapter throws on /models failure rather than falling back,
+          // so reaching here means the response was live and parsed cleanly.
+          if (!_pendingStatuses.has(key)) _pendingStatuses.set(key, 'ok');
           break;
         }
         case 'anthropic': {
           const a = anthropicAdapter(p);
           results.push(...await a.fetchCatalog(signal));
+          // Anthropic ships a static catalog; the SDK has no /models endpoint.
+          // Treat the static list as 'ok' since it's the canonical source.
+          if (!_pendingStatuses.has(key)) _pendingStatuses.set(key, 'ok');
           break;
         }
         case 'openai-compat': {
           const a = openaiCompatAdapter(p);
           results.push(...await a.fetchCatalog(signal));
+          // openai-compat adapter calls reportCatalogStatus() itself with
+          // 'ok' or 'fallback' depending on whether /models returned data.
+          if (!_pendingStatuses.has(key)) _pendingStatuses.set(key, 'ok');
           break;
         }
       }
@@ -69,8 +121,11 @@ async function fetchAll(signal: AbortSignal): Promise<Model[]> {
       // per-provider failure does not fail the whole catalog
       if ((e as Error)?.name === 'AbortError') throw e;
       console.warn(`[catalog] ${p.id} fetch failed:`, e);
+      _pendingStatuses.set(key, 'error');
     }
   }
+  // Flush pending statuses into reactive state so UI updates.
+  providerStatuses = Object.fromEntries(_pendingStatuses);
   return results;
 }
 
@@ -109,6 +164,14 @@ export const catalog = {
   get list(): ReadonlyArray<Model> { return items.length > 0 ? items : FALLBACK_MODELS; },
   get isLive(): boolean { return items.length > 0; },
   get fetchedAt(): number | null { return fetchedAt; },
+  /**
+   * Per-provider fetch status. Keys are providerStatusKey() values
+   * (e.g. `openrouter`, `anthropic`, `openai-compat:<instanceId>`); value is
+   * 'ok' (live /models succeeded), 'fallback' (live /models failed, served
+   * shipped per-preset list), or 'error' (provider threw and emitted nothing).
+   * Empty before the first refresh.
+   */
+  get providerStatuses(): ProviderCatalogStatuses { return providerStatuses; },
   refresh(force = true): Promise<void> { return refreshCatalog(force); },
   find(qualifiedId: string): Model | undefined {
     const list = items.length > 0 ? items : FALLBACK_MODELS;

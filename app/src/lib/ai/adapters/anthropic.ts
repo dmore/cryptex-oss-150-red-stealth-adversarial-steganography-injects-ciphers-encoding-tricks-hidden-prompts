@@ -2,8 +2,15 @@ import { createAnthropic } from '@ai-sdk/anthropic';
 import type { Adapter } from './base';
 import type { Model, ProviderRecord, KeyInfo } from '../types';
 import { translateError } from '../errors';
+import { effectiveDirectBaseURL } from '../proxy-url';
 
-const BASE_URL = 'https://api.anthropic.com';
+const ANTHROPIC_DIRECT = 'https://api.anthropic.com';
+// In dev, route through Vite's `/api/_proxy/anthropic` so we don't depend on
+// the `anthropic-dangerous-direct-browser-access` header (which is fine for
+// prod but better avoided when a server-side hop is available). In prod, hit
+// Anthropic directly — the dangerous-direct-browser-access header still
+// authorizes browser-origin requests there.
+const BASE_URL = effectiveDirectBaseURL('anthropic', ANTHROPIC_DIRECT);
 
 // `reasoning: true` reflects API support for the extended_thinking parameter — not a qualitative tier of reasoning.
 /** Static Anthropic 4.x catalog as of 2026-04-18. No /models endpoint exists. */
@@ -18,6 +25,7 @@ export function anthropicAdapter(record: Extract<ProviderRecord, { id: 'anthropi
 
   const provider = createAnthropic({
     apiKey: key,
+    baseURL: `${BASE_URL}/v1`,
     headers: { 'anthropic-dangerous-direct-browser-access': 'true' }
   });
 
@@ -28,6 +36,7 @@ export function anthropicAdapter(record: Extract<ProviderRecord, { id: 'anthropi
     validateKey: async (candidate, signal) => {
       let resp: Response;
       try {
+        // BASE_URL already includes the proxy hop in dev; just append /v1/messages.
         resp = await fetch(`${BASE_URL}/v1/messages`, {
           method: 'POST',
           headers: {

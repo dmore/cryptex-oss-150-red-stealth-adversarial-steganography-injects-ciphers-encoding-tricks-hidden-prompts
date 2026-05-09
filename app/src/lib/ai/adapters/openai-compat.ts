@@ -3,6 +3,7 @@ import type { Adapter } from './base';
 import type { Model, ProviderRecord } from '../types';
 import { translateError } from '../errors';
 import { getPreset } from '../presets';
+import { effectiveBaseURL } from '../proxy-url';
 
 /**
  * OpenAI reasoning & GPT-5 models reject `max_tokens` in favor of
@@ -90,9 +91,14 @@ async function patchedFetch(
 export function openaiCompatAdapter(record: Extract<ProviderRecord, { id: 'openai-compat' }>): Adapter {
   const key = (record.apiKey || '').trim();
 
+  // In dev, route through the Vite proxy at /api/_proxy/<presetId> so /v1/models
+  // and /chat/completions both sidestep browser CORS. In prod, this is the
+  // provider's URL unchanged. See ../proxy-url.ts for full rationale.
+  const baseURL = effectiveBaseURL(record.presetId, record.baseURL);
+
   const provider = createOpenAICompatible({
     name: record.name || 'openai-compat',
-    baseURL: record.baseURL,
+    baseURL,
     headers: key ? { Authorization: `Bearer ${key}` } : {},
     fetch: patchedFetch
   });
@@ -119,7 +125,7 @@ export function openaiCompatAdapter(record: Extract<ProviderRecord, { id: 'opena
       }
       let resp: Response;
       try {
-        resp = await fetch(`${record.baseURL}/chat/completions`, {
+        resp = await fetch(`${baseURL}/chat/completions`, {
           method: 'POST',
           headers: { 'content-type': 'application/json', Authorization: `Bearer ${candidate}` },
           body: JSON.stringify(probeBody),
@@ -160,9 +166,20 @@ export function openaiCompatAdapter(record: Extract<ProviderRecord, { id: 'opena
         capabilities: { streaming: true, tools: true }
       }));
 
+      // Report status back to the catalog. Lazy import keeps the adapter
+      // testable in isolation — if the catalog module isn't loaded (e.g. in
+      // a unit test that imports the adapter directly), report is a no-op.
+      const statusKey = `openai-compat:${record.instanceId}`;
+      const reportStatus = async (s: 'ok' | 'fallback' | 'error') => {
+        try {
+          const mod = await import('../catalog.svelte');
+          mod.reportCatalogStatus(statusKey, s);
+        } catch { /* catalog not loaded — ignore */ }
+      };
+
       let resp: Response;
       try {
-        resp = await fetch(`${record.baseURL}/models`, {
+        resp = await fetch(`${baseURL}/models`, {
           method: 'GET',
           headers: key ? { Authorization: `Bearer ${key}` } : {},
           signal
@@ -172,11 +189,20 @@ export function openaiCompatAdapter(record: Extract<ProviderRecord, { id: 'opena
         // Network / CORS / DNS / TLS failure — return curated fallback so the
         // model picker is never empty for cloud providers, even when /models
         // is CORS-blocked but /chat/completions works.
+        console.warn(`[openai-compat:${record.presetId ?? 'custom'}] /models fetch failed, using fallback list:`, e);
+        await reportStatus(fallbackModels.length > 0 ? 'fallback' : 'error');
         return fallbackModels;
       }
-      if (!resp.ok) return fallbackModels;
+      if (!resp.ok) {
+        console.warn(`[openai-compat:${record.presetId ?? 'custom'}] /models returned ${resp.status}, using fallback list`);
+        await reportStatus(fallbackModels.length > 0 ? 'fallback' : 'error');
+        return fallbackModels;
+      }
       let body: { data?: Array<Record<string, unknown>> };
-      try { body = (await resp.json()) as typeof body; } catch { return fallbackModels; }
+      try { body = (await resp.json()) as typeof body; } catch {
+        await reportStatus(fallbackModels.length > 0 ? 'fallback' : 'error');
+        return fallbackModels;
+      }
       const raw = body.data ?? [];
       const out: Model[] = [];
       for (const r of raw) {
@@ -196,7 +222,11 @@ export function openaiCompatAdapter(record: Extract<ProviderRecord, { id: 'opena
       // Some providers return `{data: []}` (e.g. when auth is wrong but the
       // endpoint is still reachable). Treat empty live data the same as a
       // failed fetch and surface the curated fallback list.
-      if (out.length === 0) return fallbackModels;
+      if (out.length === 0) {
+        await reportStatus(fallbackModels.length > 0 ? 'fallback' : 'error');
+        return fallbackModels;
+      }
+      await reportStatus('ok');
       out.sort((a, b) => a.name.localeCompare(b.name));
       return out;
     }

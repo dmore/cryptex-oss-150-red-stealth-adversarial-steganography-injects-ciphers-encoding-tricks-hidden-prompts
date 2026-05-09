@@ -4,7 +4,7 @@
   import { scheduleValidate, verifyNow, subscribeValidation } from '$lib/ai/validate';
   import { validateKey as gatewayValidate } from '$lib/ai/gateway';
   import { getPreset } from '$lib/ai/presets';
-  import { catalog } from '$lib/ai/catalog.svelte';
+  import { catalog, providerStatusKey } from '$lib/ai/catalog.svelte';
   import ErrorBanner from '$lib/components/ai/ErrorBanner.svelte';
   import { GatewayError } from '$lib/ai/types';
   import Eye from 'lucide-svelte/icons/eye';
@@ -36,6 +36,19 @@
       m.provider === record.id &&
       (record.id !== 'openai-compat' || m.providerInstanceId === (record as { instanceId?: string }).instanceId)
     ).length
+  );
+
+  /** Per-provider catalog fetch status — distinguishes a live `/v1/models`
+   *  result from the shipped fallback list. Surfaced as a small badge so
+   *  users know whether they're seeing the provider's actual catalog. */
+  const catalogStatus = $derived(
+    catalog.providerStatuses[providerStatusKey({ id: record.id, instanceId })]
+  );
+  const catalogStatusLabel = $derived(
+    catalogStatus === 'ok'       ? 'Live catalog from provider'
+    : catalogStatus === 'fallback' ? 'Provider /models is unreachable — showing shipped default model list'
+    : catalogStatus === 'error'    ? 'Provider /models failed and no fallback list is available'
+    : ''
   );
 
   let refreshing = $state(false);
@@ -146,6 +159,28 @@
         <Loader class="h-3 w-3 animate-spin" />
       {/if}
       <span>{modelCount} models</span>
+      {#if catalogStatus === 'fallback'}
+        <span
+          class="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-medium text-amber-400"
+          title={catalogStatusLabel}
+        >
+          fallback
+        </span>
+      {:else if catalogStatus === 'error'}
+        <span
+          class="inline-flex items-center rounded-full border border-red-500/30 bg-red-500/10 px-1.5 py-0.5 text-[9px] font-medium text-red-400"
+          title={catalogStatusLabel}
+        >
+          error
+        </span>
+      {:else if catalogStatus === 'ok'}
+        <span
+          class="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-medium text-emerald-400"
+          title={catalogStatusLabel}
+        >
+          live
+        </span>
+      {/if}
       <button
         type="button"
         onclick={refreshModels}

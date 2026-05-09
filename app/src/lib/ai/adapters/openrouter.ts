@@ -4,8 +4,13 @@ import type { Adapter, LanguageModel } from './base';
 import type { KeyInfo, Model, ProviderRecord } from '../types';
 import { GatewayError } from '../types';
 import { translateError } from '../errors';
+import { effectiveDirectBaseURL } from '../proxy-url';
 
-const BASE_URL = 'https://openrouter.ai/api/v1';
+const OPENROUTER_DIRECT = 'https://openrouter.ai/api/v1';
+// In dev, route through Vite's `/api/_proxy/openrouter` (proxy strips that
+// prefix, so the SDK's actual `/api/v1/...` path passes through correctly).
+// In prod, hit OpenRouter directly — they allow browser CORS.
+const BASE_URL = effectiveDirectBaseURL('openrouter', OPENROUTER_DIRECT);
 
 export function openrouterAdapter(record: Extract<ProviderRecord, { id: 'openrouter' }>): Adapter {
   const key = (record.apiKey || '').trim();
@@ -13,6 +18,7 @@ export function openrouterAdapter(record: Extract<ProviderRecord, { id: 'openrou
 
   const provider = createOpenRouter({
     apiKey: key,
+    baseURL: BASE_URL,
     headers: { 'HTTP-Referer': referer, 'X-Title': 'Cryptex' }
   });
 
