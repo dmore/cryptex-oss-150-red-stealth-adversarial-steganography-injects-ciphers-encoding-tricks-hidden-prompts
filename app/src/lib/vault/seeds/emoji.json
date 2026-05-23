@@ -1,0 +1,168 @@
+[
+  {
+    "id": "emoji-bundled-snake",
+    "schemaVersion": 1,
+    "title": "Snake (🐍)",
+    "description": "Classic carrier. Renders consistently across iOS, Android, Windows, macOS.",
+    "payload": { "emoji": "🐍", "mode": "variation-selectors", "notes": "Default carrier; good for short messages (<256 chars)" },
+    "tags": ["carrier", "animal", "portable"],
+    "source": "bundled",
+    "license": "CC0",
+    "addedAt": 0
+  },
+  {
+    "id": "emoji-bundled-dragon",
+    "schemaVersion": 1,
+    "title": "Dragon (🐉)",
+    "description": "Mythical carrier. Single codepoint; broad emoji-font coverage.",
+    "payload": { "emoji": "🐉", "mode": "variation-selectors", "notes": "Good visual cue for red-team demos" },
+    "tags": ["carrier", "mythical", "portable"],
+    "source": "bundled",
+    "license": "CC0",
+    "addedAt": 0
+  },
+  {
+    "id": "emoji-bundled-lizard",
+    "schemaVersion": 1,
+    "title": "Lizard (🦎)",
+    "description": "Subtle reptile carrier. Less attention-grabbing than fire/lock emoji.",
+    "payload": { "emoji": "🦎", "mode": "variation-selectors", "notes": "Blends into casual chat" },
+    "tags": ["carrier", "animal", "low-vis"],
+    "source": "bundled",
+    "license": "CC0",
+    "addedAt": 0
+  },
+  {
+    "id": "emoji-bundled-crocodile",
+    "schemaVersion": 1,
+    "title": "Crocodile (🐊)",
+    "description": "Single-codepoint reptile. Universal Unicode 6.0 support.",
+    "payload": { "emoji": "🐊", "mode": "variation-selectors", "notes": "Reliable cross-platform" },
+    "tags": ["carrier", "animal", "portable"],
+    "source": "bundled",
+    "license": "CC0",
+    "addedAt": 0
+  },
+  {
+    "id": "emoji-bundled-salute",
+    "schemaVersion": 1,
+    "title": "Saluting Face (🫡)",
+    "description": "Newer Unicode 14 carrier. Recognizable in modern chat apps.",
+    "payload": { "emoji": "🫡", "mode": "variation-selectors", "notes": "Pairs well with mock-formal payloads" },
+    "tags": ["carrier", "face", "modern"],
+    "source": "bundled",
+    "license": "CC0",
+    "addedAt": 0
+  },
+  {
+    "id": "emoji-bundled-brain",
+    "schemaVersion": 1,
+    "title": "Brain (🧠)",
+    "description": "Common reaction emoji — high blendability in AI/tech threads.",
+    "payload": { "emoji": "🧠", "mode": "variation-selectors", "notes": "Stealth fit for LLM-themed chats" },
+    "tags": ["carrier", "thought", "low-vis"],
+    "source": "bundled",
+    "license": "CC0",
+    "addedAt": 0
+  },
+  {
+    "id": "emoji-bundled-lock",
+    "schemaVersion": 1,
+    "title": "Lock (🔒)",
+    "description": "Security-themed carrier. Ironic choice for hidden payloads.",
+    "payload": { "emoji": "🔒", "mode": "variation-selectors", "notes": "Self-referential — broadcasts intent" },
+    "tags": ["carrier", "security", "ironic"],
+    "source": "bundled",
+    "license": "CC0",
+    "addedAt": 0
+  },
+  {
+    "id": "emoji-bundled-key",
+    "schemaVersion": 1,
+    "title": "Old Key (🗝️)",
+    "description": "Includes the FE0F variation selector by default — extra invisible chars survive round-trip.",
+    "payload": { "emoji": "🗝️", "mode": "variation-selectors", "notes": "Has built-in FE0F; safe with our encoder" },
+    "tags": ["carrier", "key", "extended"],
+    "source": "bundled",
+    "license": "CC0",
+    "addedAt": 0
+  },
+  {
+    "id": "emoji-bundled-magic-wand",
+    "schemaVersion": 1,
+    "title": "Magic Wand (🪄)",
+    "description": "Unicode 13 emoji. Strong fit for prompt-injection narratives.",
+    "payload": { "emoji": "🪄", "mode": "variation-selectors", "notes": "Pairs with roleplay/hypnotism prompts" },
+    "tags": ["carrier", "magic", "modern"],
+    "source": "bundled",
+    "license": "CC0",
+    "addedAt": 0
+  },
+  {
+    "id": "emoji-bundled-eyes",
+    "schemaVersion": 1,
+    "title": "Eyes (👀)",
+    "description": "Universally recognized reaction. Excellent stealth.",
+    "payload": { "emoji": "👀", "mode": "variation-selectors", "notes": "Common enough to evade casual notice" },
+    "tags": ["carrier", "reaction", "low-vis"],
+    "source": "bundled",
+    "license": "CC0",
+    "addedAt": 0
+  },
+  {
+    "id": "emoji-bundled-fire",
+    "schemaVersion": 1,
+    "title": "Fire (🔥)",
+    "description": "Ubiquitous reaction emoji. Maximum blendability.",
+    "payload": { "emoji": "🔥", "mode": "variation-selectors", "notes": "One of the safest cover-traffic carriers" },
+    "tags": ["carrier", "reaction", "portable"],
+    "source": "bundled",
+    "license": "CC0",
+    "addedAt": 0
+  },
+  {
+    "id": "emoji-bundled-gem",
+    "schemaVersion": 1,
+    "title": "Gem (💎)",
+    "description": "Single-codepoint carrier with consistent multi-platform rendering.",
+    "payload": { "emoji": "💎", "mode": "variation-selectors", "notes": "Pairs with 'valuable secret' framing" },
+    "tags": ["carrier", "object", "portable"],
+    "source": "bundled",
+    "license": "CC0",
+    "addedAt": 0
+  },
+  {
+    "id": "emoji-bundled-tagblock-demo",
+    "schemaVersion": 1,
+    "title": "Tag-Block · long-payload demo",
+    "description": "Reference payload illustrating the Paul-Butler Tags-block approach. 50% density (4 bits per Unicode codepoint).",
+    "payload": { "emoji": "🔥", "mode": "tag-block", "notes": "Use tag-block mode when message > 100 chars — denser than variation selectors" },
+    "tags": ["reference", "tag-block", "long-payload"],
+    "source": "bundled",
+    "license": "CC0",
+    "sourceUrl": "https://paulbutler.org/2025/smuggling-arbitrary-data-through-an-emoji/",
+    "addedAt": 0
+  },
+  {
+    "id": "emoji-bundled-combining-demo",
+    "schemaVersion": 1,
+    "title": "Combining-Marks · zalgo demo",
+    "description": "Reference payload using combining diacriticals (U+0300..U+033F). RENDERS AS ZALGO TEXT — visible noise.",
+    "payload": { "emoji": "o", "mode": "combining-marks", "notes": "WARNING: visible zalgo effect. Useful for forensics research, not stealth" },
+    "tags": ["reference", "combining-marks", "research", "visible"],
+    "source": "bundled",
+    "license": "CC0",
+    "addedAt": 0
+  },
+  {
+    "id": "emoji-bundled-variation-demo",
+    "schemaVersion": 1,
+    "title": "Variation-Selectors · stealth demo",
+    "description": "Reference payload for the original FE0E/FE0F technique. Highest stealth, lowest density (1 bit per selector).",
+    "payload": { "emoji": "🐍", "mode": "variation-selectors", "notes": "Best for short payloads where invisibility matters most" },
+    "tags": ["reference", "variation-selectors", "stealth"],
+    "source": "bundled",
+    "license": "CC0",
+    "addedAt": 0
+  }
+]
