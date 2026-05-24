@@ -7,6 +7,9 @@
     docs/img/screenshot-promptcraft.png     second feature shot
     docs/img/screenshot-harmbench.png       third feature shot
 -->
+<p align="center">
+  <img src="docs/img/logo.png" alt="Cryptex OSS" width="100%">
+</p>
 <h1 align="center">Cryptex OSS</h1>
 <p align="center">
   <strong>Open-source LLM red-team lab.</strong><br>
