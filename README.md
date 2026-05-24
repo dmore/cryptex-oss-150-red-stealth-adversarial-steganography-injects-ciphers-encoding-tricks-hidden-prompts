@@ -34,7 +34,7 @@
 </p>
 
 <p align="center">
-  <a href="https://cryptex.m4xx.cfd"><strong>Try live</strong></a>
+  <a href="https://cryptex.m4xx.cfd/?ref=github.com"><strong>Try live</strong></a>
   &nbsp;·&nbsp;
   <a href="#self-host-in-30-seconds"><strong>Self-host in 30 seconds</strong></a>
   &nbsp;·&nbsp;
