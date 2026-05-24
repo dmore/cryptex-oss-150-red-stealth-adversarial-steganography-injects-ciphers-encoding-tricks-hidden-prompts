@@ -4,18 +4,20 @@
   import { notify } from '$lib/stores/toast.svelte';
   import { sessionLog } from '$lib/stores/sessionLog.svelte';
   import { cn } from '$lib/utils/cn';
+  import { MAX_INPUT_BYTES } from '$lib/workers/runInWorker';
+  import { errorLogger } from '$lib/errors/logger';
   import Copy from 'lucide-svelte/icons/copy';
   import RefreshCw from 'lucide-svelte/icons/refresh-cw';
   import X from 'lucide-svelte/icons/x';
   import Loader2 from 'lucide-svelte/icons/loader-circle';
   import Sparkles from 'lucide-svelte/icons/sparkles';
   import { decodeState } from './decode.state.svelte';
-  import UsageHint from '$lib/components/shell/UsageHint.svelte';
 
   const s = decodeState;
   let result = $state<DecodeResult | null>(null);
   let pending = $state(false);
   let selectedAltIdx = $state<number | null>(null);
+  let lastReportedOversize = '';
 
   // Debounce decode by 180ms so heavy brute-scan doesn't fire per keystroke
   let timer: ReturnType<typeof setTimeout> | null = null;
@@ -31,13 +33,31 @@
       return;
     }
 
+    // 1 MB cap — universalDecode iterates every transformer and would
+    // otherwise pin the main thread for seconds on huge inputs.
+    if (snapshot.length > MAX_INPUT_BYTES) {
+      result = null;
+      pending = false;
+      selectedAltIdx = null;
+      const key = `${snapshot.length}:${snapshot.slice(0, 24)}`;
+      if (key !== lastReportedOversize) {
+        lastReportedOversize = key;
+        errorLogger.report(
+          new Error('Input exceeds 1 MB cap. Trim the input or split into batches.'),
+          { toastMessage: 'Input exceeds 1 MB cap. Trim the input or split into batches.' }
+        );
+      }
+      return;
+    }
+    lastReportedOversize = '';
+
     pending = true;
     timer = setTimeout(() => {
       try {
         result = universalDecode(snapshot);
         selectedAltIdx = null;
       } catch (err) {
-        console.error('decoder failed', err);
+        if (import.meta.env.DEV) console.error('decoder failed', err);
         result = null;
       } finally {
         pending = false;
@@ -79,29 +99,6 @@
 </script>
 
 <section class="space-y-6">
-  <header class="space-y-2">
-    <div class="flex items-center gap-2">
-      <h1 class="font-serif text-3xl sm:text-4xl tracking-tight text-balance">
-        Universal <span class="text-primary italic">decoder</span>
-      </h1>
-      <UsageHint
-        title="Universal decoder · Usage"
-        bullets={[
-          'Paste suspicious-looking text — Base64, ROT, binary, emoji, ZWSP.',
-          'Auto-debounced 180ms after typing stops.',
-          'Click an alternative to view it in the result pane.',
-          'Re-decode chains the result back into the input for layered ciphers.'
-        ]}
-        note="No round-trip — every detector runs locally in your browser."
-      />
-    </div>
-    <p class="text-muted-foreground max-w-2xl text-sm sm:text-base">
-      Paste any suspicious-looking text — ciphertext, Base64, binary, Unicode-abused strings,
-      emoji steganography. The decoder runs every transformer's detector, ranks candidates by
-      priority, and surfaces alternatives.
-    </p>
-  </header>
-
   <div class="grid gap-4 lg:grid-cols-2">
     <div class="space-y-2 rounded-xl border border-border bg-card/60 p-4 shadow-glass">
       <div class="flex items-center justify-between">

@@ -6,16 +6,24 @@
   } from './bijection';
   import { notify } from '$lib/stores/toast.svelte';
   import { sessionLog } from '$lib/stores/sessionLog.svelte';
+  import { MAX_INPUT_BYTES } from '$lib/workers/runInWorker';
+  import { errorLogger } from '$lib/errors/logger';
   import Copy from 'lucide-svelte/icons/copy';
   import Shuffle from 'lucide-svelte/icons/shuffle';
   import Download from 'lucide-svelte/icons/download';
   import Sparkles from 'lucide-svelte/icons/sparkles';
   import { bijectionState } from './bijection.state.svelte';
-  import UsageHint from '$lib/components/shell/UsageHint.svelte';
 
   const s = bijectionState;
 
   function run() {
+    if (s.input.length > MAX_INPUT_BYTES) {
+      errorLogger.report(
+        new Error('Input exceeds 1 MB cap. Trim the input or split into batches.'),
+        { toastMessage: 'Input exceeds 1 MB cap. Trim the input or split into batches.' }
+      );
+      return;
+    }
     s.outputs = generateBijectionPayloads(s.input, s.opts);
     if (s.outputs.length === 0) return;
     if (s.autoCopy) copy(s.outputs[0].prompt, 'First payload copied');
@@ -75,30 +83,7 @@
   }
 </script>
 
-<svelte:head><title>Bijection · Cryptex</title></svelte:head>
-
 <section class="space-y-6">
-  <header class="space-y-2">
-    <div class="flex items-center gap-2">
-      <h1 class="font-serif text-3xl sm:text-4xl tracking-tight text-balance">
-        Bijection <span class="text-primary italic">alphapr</span>
-      </h1>
-      <UsageHint
-        title="Bijection alphapr · Usage"
-        bullets={[
-          'Generates char→token bijections wrapped in a teaching prompt.',
-          'Budget controls how many variants per run.',
-          'Larger fixed-size = more leading chars un-mapped (lower noise).',
-          'Use Shuffle to permute the same mapping; Regen for a new one.'
-        ]}
-      />
-    </div>
-    <p class="text-muted-foreground max-w-2xl text-sm sm:text-base">
-      Generate character-to-token substitution mappings and wrap your input in a teaching prompt
-      ("learn my language called alphapr"). Multiple variants per run for research-grade prompt fuzzing.
-    </p>
-  </header>
-
   <div class="grid gap-4 lg:grid-cols-[320px_1fr]">
     <div class="space-y-3 rounded-xl border border-border bg-card/60 p-4 shadow-glass lg:sticky lg:top-20 lg:self-start">
       <h2 class="font-serif text-sm">Mapping</h2>

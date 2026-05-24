@@ -9,9 +9,11 @@
   } from '$lib/redteam/pdf-meta-injection';
   import { notify } from '$lib/stores/toast.svelte';
   import { useToolState } from '$lib/stores/tool-state.svelte';
+  import { MAX_INPUT_BYTES } from '$lib/workers/runInWorker';
+  import { errorLogger } from '$lib/errors/logger';
+  import ToolShell from '$lib/components/shell/ToolShell.svelte';
   import Copy from 'lucide-svelte/icons/copy';
   import FileScan from 'lucide-svelte/icons/file-scan';
-  import UsageHint from '$lib/components/shell/UsageHint.svelte';
 
   const track = useToolState<PdfPayloadTrack>('pdf-injection', 'track', 'body-with-meta');
   const title = useToolState<string>('pdf-injection', 'title', 'Q1 2026 Quarterly Operations Report');
@@ -19,12 +21,28 @@
   const hiddenInstruction = useToolState<string>('pdf-injection', 'hiddenInstruction', DEFAULT_INSTRUCTION);
   const coverBody = useToolState<string>('pdf-injection', 'coverBody', '');
   let result = $state<PdfInjectionResult | null>(null);
+  let lastReportedOversize = '';
 
   function regenerate() {
     if (!hiddenInstruction.value.trim()) {
       result = null;
       return;
     }
+    // The composite payload is hidden instruction + cover body; cap the sum.
+    const totalSize = hiddenInstruction.value.length + coverBody.value.length;
+    if (totalSize > MAX_INPUT_BYTES) {
+      result = null;
+      const key = `${totalSize}:${hiddenInstruction.value.slice(0, 24)}`;
+      if (key !== lastReportedOversize) {
+        lastReportedOversize = key;
+        errorLogger.report(
+          new Error('Input exceeds 1 MB cap. Trim the instruction / cover body or split into batches.'),
+          { toastMessage: 'Input exceeds 1 MB cap. Trim the instruction / cover body or split into batches.' }
+        );
+      }
+      return;
+    }
+    lastReportedOversize = '';
     result = buildPdfPayload({
       track: track.value,
       hiddenInstruction: hiddenInstruction.value,
@@ -50,34 +68,22 @@
   }
 </script>
 
-<svelte:head><title>PDF Metadata Injection · Cryptex</title></svelte:head>
-
-<section class="space-y-6">
-  <header class="space-y-2">
-    <div class="flex items-center gap-2">
-      <h1 class="font-serif text-3xl sm:text-4xl tracking-tight text-balance">
-        PDF metadata <span class="text-primary italic">injection</span>
-      </h1>
-      <UsageHint
-        title="PDF metadata injection · Usage"
-        bullets={[
-          'Pick a track: metadata-only / body-with-meta / invisible-text.',
-          'Hidden instruction goes into /Title /Subject /Author or invisible-text layer.',
-          'Copy the synthesized PDF-extracted-text representation.',
-          'Feed to a PDF-summarization or RAG agent to test compliance.'
-        ]}
-      />
-    </div>
-    <p class="text-muted-foreground max-w-2xl text-sm sm:text-base">
-      Synthesize PDF-extracted-text representations with adversarial instructions in
-      <code class="rounded bg-muted/40 px-1 py-0.5 font-mono text-[11px]">/Title</code>,
-      <code class="rounded bg-muted/40 px-1 py-0.5 font-mono text-[11px]">/Subject</code>,
-      <code class="rounded bg-muted/40 px-1 py-0.5 font-mono text-[11px]">/Author</code> metadata,
-      visible body, or invisible-text layers. Tests PDF-summarization + RAG agents that ingest
-      extracted text via pdfminer / pdfplumber / pdfjs.
-    </p>
-  </header>
-
+<ToolShell
+  toolId="pdf-injection"
+  title="PDF metadata injection"
+  accent="injection"
+  description="Synthesize PDF-extracted-text representations with adversarial instructions in /Title, /Subject, /Author metadata, visible body, or invisible-text layers. Tests PDF-summarization + RAG agents that ingest extracted text via pdfminer / pdfplumber / pdfjs."
+  usage={{
+    title: 'PDF metadata injection · Usage',
+    bullets: [
+      'Pick a track: metadata-only / body-with-meta / invisible-text.',
+      'Hidden instruction goes into /Title /Subject /Author or invisible-text layer.',
+      'Copy the synthesized PDF-extracted-text representation.',
+      'Feed to a PDF-summarization or RAG agent to test compliance.',
+      '1 MB cap on (hidden instruction + cover body).'
+    ]
+  }}
+>
   <div class="grid gap-4 lg:grid-cols-[320px_1fr]">
     <div class="space-y-3 rounded-xl border border-border bg-card/60 p-4 shadow-glass lg:sticky lg:top-20 lg:self-start">
       <label class="block space-y-1">
@@ -139,4 +145,4 @@
       </div>
     </div>
   </div>
-</section>
+</ToolShell>

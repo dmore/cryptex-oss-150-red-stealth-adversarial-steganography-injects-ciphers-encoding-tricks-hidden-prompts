@@ -11,7 +11,6 @@
   import Copy from 'lucide-svelte/icons/copy';
   import TriangleAlert from 'lucide-svelte/icons/triangle-alert';
   import { tokenadeState } from './tokenade.state.svelte';
-  import UsageHint from '$lib/components/shell/UsageHint.svelte';
 
   const s = tokenadeState;
 
@@ -79,31 +78,7 @@
   }
 </script>
 
-<svelte:head><title>Tokenade · Cryptex</title></svelte:head>
-
 <section class="space-y-6">
-  <header class="space-y-2">
-    <div class="flex items-center gap-2">
-      <h1 class="font-serif text-3xl sm:text-4xl tracking-tight text-balance">
-        Tokenade
-      </h1>
-      <UsageHint
-        title="Tokenade · Usage"
-        bullets={[
-          'Pick a carrier (emoji or text), set depth × breadth × repeats.',
-          'Length estimate updates live — watch the danger threshold.',
-          'Variation selectors + ZWNJ = high token-per-codepoint inflation.',
-          'Use a preset for known-good token-bomb shapes.'
-        ]}
-        note="Stress-tests tokenizer cost, context-window limits, and rate-limit guards."
-      />
-    </div>
-    <p class="text-muted-foreground max-w-2xl text-sm sm:text-base">
-      Depth × breadth × repeats = a controlled payload explosion. Uses emoji carriers, variation selectors,
-      and zero-width noise to generate high-token-cost strings for stress testing.
-    </p>
-  </header>
-
   <div class="inline-flex gap-1 rounded-lg border border-border bg-card/40 p-1">
     <button
       type="button"

@@ -9,22 +9,38 @@
   } from '$lib/redteam/markdown-exfil';
   import { notify } from '$lib/stores/toast.svelte';
   import { useToolState } from '$lib/stores/tool-state.svelte';
+  import { MAX_INPUT_BYTES } from '$lib/workers/runInWorker';
+  import { errorLogger } from '$lib/errors/logger';
+  import ToolShell from '$lib/components/shell/ToolShell.svelte';
   import Copy from 'lucide-svelte/icons/copy';
   import Link from 'lucide-svelte/icons/link';
   import RefreshCw from 'lucide-svelte/icons/refresh-cw';
-  import UsageHint from '$lib/components/shell/UsageHint.svelte';
 
   const hiddenInstruction = useToolState<string>('markdown-exfil', 'hiddenInstruction', DEFAULT_HIDDEN_INSTRUCTION);
   const canaryUrl = useToolState<string>('markdown-exfil', 'canaryUrl', 'https://canary.example.test');
   const payloadType = useToolState<ExfilPayloadType>('markdown-exfil', 'payloadType', 'image-canary');
   const token = useToolState<string>('markdown-exfil', 'token', '');
   let result = $state<ExfilResult | null>(null);
+  let lastReportedOversize = '';
 
   function regenerate() {
     if (!hiddenInstruction.value.trim()) {
       result = null;
       return;
     }
+    if (hiddenInstruction.value.length > MAX_INPUT_BYTES) {
+      result = null;
+      const key = `${hiddenInstruction.value.length}:${hiddenInstruction.value.slice(0, 24)}`;
+      if (key !== lastReportedOversize) {
+        lastReportedOversize = key;
+        errorLogger.report(
+          new Error('Input exceeds 1 MB cap. Trim the input or split into batches.'),
+          { toastMessage: 'Input exceeds 1 MB cap. Trim the input or split into batches.' }
+        );
+      }
+      return;
+    }
+    lastReportedOversize = '';
     result = buildExfilPayload({
       hiddenInstruction: hiddenInstruction.value,
       canaryUrl: canaryUrl.value.trim() || undefined,
@@ -58,31 +74,22 @@
   }
 </script>
 
-<svelte:head><title>Markdown Exfil · Cryptex</title></svelte:head>
-
-<section class="space-y-6">
-  <header class="space-y-2">
-    <div class="flex items-center gap-2">
-      <h1 class="font-serif text-3xl sm:text-4xl tracking-tight text-balance">
-        Markdown <span class="text-primary italic">exfil</span> lab
-      </h1>
-      <UsageHint
-        title="Markdown exfil · Usage"
-        bullets={[
-          'Pick a payload type — image-canary, link-tooltip, citation, data-URI, etc.',
-          'Each tests a different exfil channel.',
-          'Render the result in your downstream chat UI to verify behaviour.',
-          'Watch your canary endpoint logs — fetches mean exfil succeeded.'
-        ]}
-      />
-    </div>
-    <p class="text-muted-foreground max-w-2xl text-sm sm:text-base">
-      Synthesize indirect-injection payloads — markdown, HTML, citation blocks, document bodies,
-      CSV cells, data: URIs. Tests whether a downstream chat UI fetches embedded images on render
-      (data exfil), or whether a summarizer re-emits hidden instructions when paraphrasing content.
-    </p>
-  </header>
-
+<ToolShell
+  toolId="markdown-exfil"
+  title="Markdown exfil lab"
+  accent="exfil"
+  description="Synthesize indirect-injection payloads — markdown, HTML, citation blocks, document bodies, CSV cells, data: URIs. Tests whether a downstream chat UI fetches embedded images on render (data exfil), or whether a summarizer re-emits hidden instructions when paraphrasing content."
+  usage={{
+    title: 'Markdown exfil · Usage',
+    bullets: [
+      'Pick a payload type — image-canary, link-tooltip, citation, data-URI, etc.',
+      'Each tests a different exfil channel.',
+      'Render the result in your downstream chat UI to verify behaviour.',
+      'Watch your canary endpoint logs — fetches mean exfil succeeded.',
+      '1 MB input cap on the hidden instruction.'
+    ]
+  }}
+>
   <div class="grid gap-4 lg:grid-cols-[320px_1fr]">
     <!-- Sidebar -->
     <div class="space-y-3 rounded-xl border border-border bg-card/60 p-4 shadow-glass lg:sticky lg:top-20 lg:self-start">
@@ -195,4 +202,4 @@
       </div>
     </div>
   </div>
-</section>
+</ToolShell>

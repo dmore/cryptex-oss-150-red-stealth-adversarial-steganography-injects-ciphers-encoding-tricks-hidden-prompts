@@ -7,13 +7,14 @@
   import { useToolState } from '$lib/stores/tool-state.svelte';
   import { activeRuns } from '$lib/stores/activeRuns.svelte';
   import { notify } from '$lib/stores/toast.svelte';
+  import { MAX_INPUT_BYTES } from '$lib/workers/runInWorker';
+  import ToolShell from '$lib/components/shell/ToolShell.svelte';
   import Loader from 'lucide-svelte/icons/loader-circle';
   import Play from 'lucide-svelte/icons/play';
   import Square from 'lucide-svelte/icons/square';
   import Copy from 'lucide-svelte/icons/copy';
   import Plus from 'lucide-svelte/icons/plus';
   import X from 'lucide-svelte/icons/x';
-  import UsageHint from '$lib/components/shell/UsageHint.svelte';
 
   type CrossDiffData = { results: FanoutResult[]; progress: number; total: number };
   const TOOL_ID = 'cross-model-diff';
@@ -38,7 +39,6 @@
   const running = $derived(activeRuns.isRunning(TOOL_ID));
   const results = $derived(run?.data.results ?? []);
   const progress = $derived(run?.data.progress ?? 0);
-  const errorMsg = $derived(run?.error ?? '');
 
   const keyConfigured = $derived(hasApiKey());
 
@@ -59,6 +59,11 @@
     if (!prompt.value.trim()) {
       activeRuns.start<CrossDiffData>(TOOL_ID, { results: [], progress: 0, total: 0 });
       activeRuns.fail(TOOL_ID, 'Enter a prompt to diff.');
+      return;
+    }
+    if (prompt.value.length > MAX_INPUT_BYTES) {
+      activeRuns.start<CrossDiffData>(TOOL_ID, { results: [], progress: 0, total: 0 });
+      activeRuns.fail(TOOL_ID, 'Input exceeds 1 MB cap. Trim the input or split into batches.');
       return;
     }
     if (targets.length === 0) {
@@ -131,31 +136,22 @@
   }
 </script>
 
-<svelte:head><title>Cross-Model Diff · Cryptex</title></svelte:head>
-
-<section class="space-y-6">
-  <header class="space-y-2">
-    <div class="flex items-center gap-2">
-      <h1 class="font-serif text-3xl sm:text-4xl tracking-tight text-balance">
-        Cross-model <span class="text-primary italic">diff</span>
-      </h1>
-      <UsageHint
-        title="Cross-model diff · Usage"
-        bullets={[
-          'Type a prompt, pick 2-4 target models from the picker.',
-          'All targets run in parallel; judge scores each response.',
-          'Useful for identifying which model family is softest on a given framing.',
-          'Stops on cancel; results stream in as they arrive.'
-        ]}
-      />
-    </div>
-    <p class="text-muted-foreground max-w-2xl text-sm sm:text-base">
-      Same prompt, multiple targets, side-by-side responses with judge scores. Useful for
-      comparing how different model families handle the same framing — which break, which hold,
-      which hedge.
-    </p>
-  </header>
-
+<ToolShell
+  toolId={TOOL_ID}
+  title="Cross-model diff"
+  accent="diff"
+  description="Same prompt, multiple targets, side-by-side responses with judge scores. Useful for comparing how different model families handle the same framing — which break, which hold, which hedge."
+  usage={{
+    title: 'Cross-model diff · Usage',
+    bullets: [
+      'Type a prompt, pick 2-4 target models from the picker.',
+      'All targets run in parallel; judge scores each response.',
+      'Useful for identifying which model family is softest on a given framing.',
+      'Stops on cancel; results stream in as they arrive.',
+      '1 MB input cap on the prompt.'
+    ]
+  }}
+>
   <NoProviderBanner context="tool" />
 
   <div class="grid gap-4 lg:grid-cols-[320px_1fr]">
@@ -235,9 +231,6 @@
         {/if}
       </div>
 
-      {#if errorMsg}
-        <p class="text-xs text-destructive">{errorMsg}</p>
-      {/if}
     </div>
 
     <!-- Right — prompt + results -->
@@ -304,4 +297,4 @@
       </div>
     </div>
   </div>
-</section>
+</ToolShell>

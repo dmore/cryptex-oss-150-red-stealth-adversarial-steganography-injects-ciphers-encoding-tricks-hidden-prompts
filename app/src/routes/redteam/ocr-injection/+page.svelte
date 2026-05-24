@@ -9,11 +9,13 @@
   import { notify } from '$lib/stores/toast.svelte';
   import { useToolState } from '$lib/stores/tool-state.svelte';
   import { onMount } from 'svelte';
+  import { MAX_INPUT_BYTES } from '$lib/workers/runInWorker';
+  import { errorLogger } from '$lib/errors/logger';
+  import ToolShell from '$lib/components/shell/ToolShell.svelte';
   import Copy from 'lucide-svelte/icons/copy';
   import Download from 'lucide-svelte/icons/download';
   import ImageIcon from 'lucide-svelte/icons/image';
   import RefreshCw from 'lucide-svelte/icons/refresh-cw';
-  import UsageHint from '$lib/components/shell/UsageHint.svelte';
 
   // Form state — persisted across tab switches
   const payload = useToolState<string>('ocr-injection', 'payload', OCR_PRESETS[0].text);
@@ -42,6 +44,15 @@
     if (!isBrowser) return;
     if (!payload.value.trim()) {
       imageDataUrl = null;
+      return;
+    }
+    if (payload.value.length > MAX_INPUT_BYTES) {
+      imageDataUrl = null;
+      errorMsg = 'Input exceeds 1 MB cap.';
+      errorLogger.report(
+        new Error('Input exceeds 1 MB cap. Trim the payload or split into batches.'),
+        { toastMessage: 'Input exceeds 1 MB cap. Trim the payload or split into batches.' }
+      );
       return;
     }
     busy = true;
@@ -92,31 +103,22 @@
   ];
 </script>
 
-<svelte:head><title>OCR Injection · Cryptex</title></svelte:head>
-
-<section class="space-y-6">
-  <header class="space-y-2">
-    <div class="flex items-center gap-2">
-      <h1 class="font-serif text-3xl sm:text-4xl tracking-tight text-balance">
-        OCR <span class="text-primary italic">injection</span> generator
-      </h1>
-      <UsageHint
-        title="OCR injection · Usage"
-        bullets={[
-          'Pick a mode: overt → typographic → micro → edge → covert.',
-          'Adversarial text is rendered into a PNG via Canvas.',
-          'Vision-capable models OCR the image and may execute the instruction.',
-          'Covert / typographic / micro modes hide the text from human review.'
-        ]}
-      />
-    </div>
-    <p class="text-muted-foreground max-w-2xl text-sm sm:text-base">
-      Renders adversarial text into a PNG that vision-capable models OCR + execute. Use covert
-      or typographic mode to hide the instruction from a human reviewing the image; the OCR layer
-      of vision LLMs still picks it up.
-    </p>
-  </header>
-
+<ToolShell
+  toolId="ocr-injection"
+  title="OCR injection generator"
+  accent="injection"
+  description="Renders adversarial text into a PNG that vision-capable models OCR + execute. Use covert or typographic mode to hide the instruction from a human reviewing the image; the OCR layer of vision LLMs still picks it up."
+  usage={{
+    title: 'OCR injection · Usage',
+    bullets: [
+      'Pick a mode: overt → typographic → micro → edge → covert.',
+      'Adversarial text is rendered into a PNG via Canvas.',
+      'Vision-capable models OCR the image and may execute the instruction.',
+      'Covert / typographic / micro modes hide the text from human review.',
+      '1 MB input cap on the payload text.'
+    ]
+  }}
+>
   <div class="grid gap-4 lg:grid-cols-[320px_1fr]">
     <!-- Sidebar — controls -->
     <div class="space-y-3 rounded-xl border border-border bg-card/60 p-4 shadow-glass lg:sticky lg:top-20 lg:self-start">
@@ -289,4 +291,4 @@
       </div>
     </div>
   </div>
-</section>
+</ToolShell>

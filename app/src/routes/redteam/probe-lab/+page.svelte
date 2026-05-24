@@ -8,11 +8,12 @@
   import { useToolState } from '$lib/stores/tool-state.svelte';
   import { activeRuns } from '$lib/stores/activeRuns.svelte';
   import { notify } from '$lib/stores/toast.svelte';
+  import { MAX_INPUT_BYTES } from '$lib/workers/runInWorker';
+  import ToolShell from '$lib/components/shell/ToolShell.svelte';
   import Loader from 'lucide-svelte/icons/loader-circle';
   import Play from 'lucide-svelte/icons/play';
   import Square from 'lucide-svelte/icons/square';
   import Copy from 'lucide-svelte/icons/copy';
-  import UsageHint from '$lib/components/shell/UsageHint.svelte';
 
   type ProbeLabData = { results: FanoutResult[]; progress: number; total: number };
   const TOOL_ID = 'probe-lab';
@@ -28,7 +29,6 @@
   const results = $derived(run?.data.results ?? []);
   const progress = $derived(run?.data.progress ?? 0);
   const total = $derived(run?.data.total ?? 0);
-  const errorMsg = $derived(run?.error ?? '');
 
   const keyConfigured = $derived(hasApiKey());
 
@@ -65,6 +65,11 @@
       // We don't currently have a run, so use a transient one to surface the error.
       activeRuns.start<ProbeLabData>(TOOL_ID, { results: [], progress: 0, total: 0 });
       activeRuns.fail(TOOL_ID, 'Enter a task to probe.');
+      return;
+    }
+    if (task.value.length > MAX_INPUT_BYTES) {
+      activeRuns.start<ProbeLabData>(TOOL_ID, { results: [], progress: 0, total: 0 });
+      activeRuns.fail(TOOL_ID, 'Input exceeds 1 MB cap. Trim the input or split into batches.');
       return;
     }
     if (!keyConfigured) {
@@ -134,31 +139,22 @@
   }
 </script>
 
-<svelte:head><title>Probe Lab · Cryptex</title></svelte:head>
-
-<section class="space-y-6">
-  <header class="space-y-2">
-    <div class="flex items-center gap-2">
-      <h1 class="font-serif text-3xl sm:text-4xl tracking-tight text-balance">
-        Probe <span class="text-primary italic">lab</span>
-      </h1>
-      <UsageHint
-        title="Probe lab · Usage"
-        bullets={[
-          'Paste a task; every mutator fans out in parallel against one target.',
-          'Local templates for deterministic mutators; LLM call for generative ones.',
-          'Judge scores each response; leaderboard sorts highest-first.',
-          'Stop button cancels in-flight requests safely.'
-        ]}
-      />
-    </div>
-    <p class="text-muted-foreground max-w-2xl text-sm sm:text-base">
-      Paste a task, fan out to every mutator with a deterministic local template, score each
-      response with a judge model, see the leaderboard. One target model, all techniques in
-      parallel — fastest way to see which framings break a target.
-    </p>
-  </header>
-
+<ToolShell
+  toolId={TOOL_ID}
+  title="Probe lab"
+  accent="lab"
+  description="Paste a task, fan out to every mutator with a deterministic local template, score each response with a judge model, see the leaderboard. One target model, all techniques in parallel — fastest way to see which framings break a target."
+  usage={{
+    title: 'Probe lab · Usage',
+    bullets: [
+      'Paste a task; every mutator fans out in parallel against one target.',
+      'Local templates for deterministic mutators; LLM call for generative ones.',
+      'Judge scores each response; leaderboard sorts highest-first.',
+      'Stop button cancels in-flight requests safely.',
+      '1 MB input cap on the task prompt.'
+    ]
+  }}
+>
   <NoProviderBanner context="tool" />
 
   <div class="grid gap-4 lg:grid-cols-[320px_1fr]">
@@ -221,10 +217,6 @@
           </button>
         {/if}
       </div>
-
-      {#if errorMsg}
-        <p class="text-xs text-destructive">{errorMsg}</p>
-      {/if}
 
       <div class="rounded-md border border-border/40 bg-background/40 p-2 text-[11px] leading-relaxed text-muted-foreground">
         Each mutator's <code class="rounded bg-muted/40 px-1 py-0.5 font-mono text-[10px]">localTemplate</code> generates the prompt; target streams the reply; judge scores it 0-1.
@@ -299,4 +291,4 @@
       </div>
     </div>
   </div>
-</section>
+</ToolShell>

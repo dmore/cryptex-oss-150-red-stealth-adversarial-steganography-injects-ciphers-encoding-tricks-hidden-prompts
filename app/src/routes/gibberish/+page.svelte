@@ -8,15 +8,29 @@
     removeSpecificChars
   } from '$lib/components/tools/gibberish/gibberish';
   import { gibberishState } from '$lib/components/tools/gibberish/gibberish.state.svelte';
+  import { MAX_INPUT_BYTES } from '$lib/workers/runInWorker';
+  import { errorLogger } from '$lib/errors/logger';
+  import ToolShell from '$lib/components/shell/ToolShell.svelte';
   import Copy from 'lucide-svelte/icons/copy';
   import Shuffle from 'lucide-svelte/icons/shuffle';
   import Scissors from 'lucide-svelte/icons/scissors';
   import BookOpen from 'lucide-svelte/icons/book-open';
-  import UsageHint from '$lib/components/shell/UsageHint.svelte';
 
   const s = gibberishState;
 
+  function checkSize(text: string): boolean {
+    if (text.length > MAX_INPUT_BYTES) {
+      errorLogger.report(
+        new Error('Input exceeds 1 MB cap. Trim the input or split into batches.'),
+        { toastMessage: 'Input exceeds 1 MB cap. Trim the input or split into batches.' }
+      );
+      return false;
+    }
+    return true;
+  }
+
   function runDictionary() {
+    if (!checkSize(s.gibberishInput)) return;
     const result = sentenceToGibberish(s.gibberishInput, s.gibberishSeed, s.gibberishChars);
     s.gibberishOutput = result.output;
     s.gibberishDictionary = result.dictionary;
@@ -37,6 +51,7 @@
       notify.error('Please enter text to process');
       return;
     }
+    if (!checkSize(s.removalInput)) return;
     s.removalOutputs = generateRandomRemovals(s.removalInput, {
       variations: s.removalVariations,
       minLetters: s.removalMinLetters,
@@ -67,6 +82,7 @@
       notify.error('Please specify characters to remove');
       return;
     }
+    if (!checkSize(s.removalSpecificInput)) return;
     s.removalSpecificOutput = removeSpecificChars(s.removalSpecificInput, s.removalCharsToRemove);
     notify.success('Characters removed');
     sessionLog.record({
@@ -94,32 +110,22 @@
   }
 </script>
 
-<svelte:head>
-  <title>Gibberish · Cryptex</title>
-</svelte:head>
-
-<section class="space-y-6">
-  <header class="space-y-2">
-    <div class="flex items-center gap-2">
-      <h1 class="font-serif text-3xl sm:text-4xl tracking-tight text-balance">
-        Gibberish <span class="text-primary italic">lab</span>
-      </h1>
-      <UsageHint
-        title="Gibberish lab · Usage"
-        bullets={[
-          'Dictionary mode → consistent char→token substitution.',
-          'Removal mode → strips chars to produce puzzle variants.',
-          'Seed makes runs reproducible across sessions.',
-          'Useful for low-resource bypass and CTF-style puzzles.'
-        ]}
-      />
-    </div>
-    <p class="text-muted-foreground max-w-2xl text-sm sm:text-base">
-      Generate consistent dictionary-mapped gibberish, or strip characters from text to produce puzzle
-      variants. Seeded for reproducibility, deterministic across runs.
-    </p>
-  </header>
-
+<ToolShell
+  toolId="gibberish"
+  title="Gibberish lab"
+  accent="lab"
+  description="Generate consistent dictionary-mapped gibberish, or strip characters from text to produce puzzle variants. Seeded for reproducibility, deterministic across runs."
+  usage={{
+    title: 'Gibberish lab · Usage',
+    bullets: [
+      'Dictionary mode → consistent char→token substitution.',
+      'Removal mode → strips chars to produce puzzle variants.',
+      'Seed makes runs reproducible across sessions.',
+      'Useful for low-resource bypass and CTF-style puzzles.',
+      '1 MB input cap per run.'
+    ]
+  }}
+>
   <!-- Top-level mode switch: dictionary vs removal -->
   <div class="inline-flex gap-1 rounded-lg border border-border bg-card/40 p-1">
     <button
@@ -415,4 +421,4 @@
       </div>
     {/if}
   {/if}
-</section>
+</ToolShell>

@@ -7,12 +7,13 @@
   import { useToolState } from '$lib/stores/tool-state.svelte';
   import { activeRuns } from '$lib/stores/activeRuns.svelte';
   import { notify } from '$lib/stores/toast.svelte';
+  import { MAX_INPUT_BYTES } from '$lib/workers/runInWorker';
+  import ToolShell from '$lib/components/shell/ToolShell.svelte';
   import Loader from 'lucide-svelte/icons/loader-circle';
   import Play from 'lucide-svelte/icons/play';
   import Square from 'lucide-svelte/icons/square';
   import Upload from 'lucide-svelte/icons/upload';
   import Copy from 'lucide-svelte/icons/copy';
-  import UsageHint from '$lib/components/shell/UsageHint.svelte';
 
   const targetPref = createPersistedState<string>('cryptex.replayer.target', 'openrouter:openrouter/auto');
 
@@ -37,7 +38,6 @@
   const run = $derived(activeRuns.get<ReplayerData>(TOOL_ID));
   const running = $derived(activeRuns.isRunning(TOOL_ID));
   const progress = $derived(run?.data.progress ?? 0);
-  const errorMsg = $derived(run?.error ?? '');
   // Prefer the run's turns (live or completed) so navigating away + back keeps state.
   const turns = $derived(run?.data.turns ?? parsedTurns);
 
@@ -113,6 +113,11 @@
     if (parsedTurns.length === 0) {
       activeRuns.start<ReplayerData>(TOOL_ID, { turns: [], progress: 0, total: 0 });
       activeRuns.fail(TOOL_ID, 'No turns to replay. Paste a ShareGPT JSON or messages array.');
+      return;
+    }
+    if (rawJson.value.length > MAX_INPUT_BYTES) {
+      activeRuns.start<ReplayerData>(TOOL_ID, { turns: [], progress: 0, total: 0 });
+      activeRuns.fail(TOOL_ID, 'Input exceeds 1 MB cap. Trim the transcript or split into batches.');
       return;
     }
     if (!keyConfigured) {
@@ -222,31 +227,22 @@
   const assistantTurnCount = $derived(turns.filter((t) => t.role === 'assistant').length);
 </script>
 
-<svelte:head><title>Conversation Replayer · Cryptex</title></svelte:head>
-
-<section class="space-y-6">
-  <header class="space-y-2">
-    <div class="flex items-center gap-2">
-      <h1 class="font-serif text-3xl sm:text-4xl tracking-tight text-balance">
-        Conversation <span class="text-primary italic">replayer</span>
-      </h1>
-      <UsageHint
-        title="Conversation replayer · Usage"
-        bullets={[
-          'Load a ShareGPT JSON transcript (or any role/content array).',
-          'Pick a different target model; each assistant turn gets replayed.',
-          'Original vs replayed shown side-by-side per turn.',
-          'Detects regressions when a known-working chain breaks on a new model version.'
-        ]}
-      />
-    </div>
-    <p class="text-muted-foreground max-w-2xl text-sm sm:text-base">
-      Load a ShareGPT JSON transcript (or any role/content array), replay each assistant turn
-      against a different target model, see the original alongside the replayed response. Useful
-      for re-running known-working chains against new model versions.
-    </p>
-  </header>
-
+<ToolShell
+  toolId={TOOL_ID}
+  title="Conversation replayer"
+  accent="replayer"
+  description="Load a ShareGPT JSON transcript (or any role/content array), replay each assistant turn against a different target model, see the original alongside the replayed response. Useful for re-running known-working chains against new model versions."
+  usage={{
+    title: 'Conversation replayer · Usage',
+    bullets: [
+      'Load a ShareGPT JSON transcript (or any role/content array).',
+      'Pick a different target model; each assistant turn gets replayed.',
+      'Original vs replayed shown side-by-side per turn.',
+      'Detects regressions when a known-working chain breaks on a new model version.',
+      '1 MB cap on the transcript JSON.'
+    ]
+  }}
+>
   <NoProviderBanner context="tool" />
 
   <div class="grid gap-4 lg:grid-cols-[320px_1fr]">
@@ -305,9 +301,6 @@
         {/if}
       </div>
 
-      {#if errorMsg}
-        <p class="text-xs text-destructive">{errorMsg}</p>
-      {/if}
       {#if parseError}
         <p class="text-xs text-destructive">parse: {parseError}</p>
       {/if}
@@ -391,4 +384,4 @@
       {/if}
     </div>
   </div>
-</section>
+</ToolShell>

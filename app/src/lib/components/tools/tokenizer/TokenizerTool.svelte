@@ -5,7 +5,6 @@
   import { notify } from '$lib/stores/toast.svelte';
   import { sessionLog } from '$lib/stores/sessionLog.svelte';
   import { tokenizerState, type Engine, type Token } from './tokenizer.state.svelte';
-  import UsageHint from '$lib/components/shell/UsageHint.svelte';
 
   const s = tokenizerState;
   let pending = $state(false);
@@ -101,30 +100,7 @@
   }
 </script>
 
-<svelte:head><title>Tokenizer · Cryptex</title></svelte:head>
-
 <section class="space-y-6">
-  <header class="space-y-2">
-    <div class="flex items-center gap-2">
-      <h1 class="font-serif text-3xl sm:text-4xl tracking-tight text-balance">
-        Tokenizer
-      </h1>
-      <UsageHint
-        title="Tokenizer · Usage"
-        bullets={[
-          'Compare different BPE vocabularies on the same input.',
-          'Each token is colored so boundaries are visible.',
-          'Useful for verifying token-bomb output and prompt cost.',
-          'cl100k = GPT-3.5/4, o200k = GPT-4o, p50k/r50k = older models.'
-        ]}
-      />
-    </div>
-    <p class="text-muted-foreground max-w-2xl text-sm sm:text-base">
-      Visualize how models segment your text. Toggle between UTF-8 bytes, naive word splits, and the
-      BPE encoders used by GPT-3.5, GPT-4, and GPT-4o.
-    </p>
-  </header>
-
   <div class="flex flex-wrap items-center gap-3">
     <div class="inline-flex flex-wrap gap-1 rounded-lg border border-border bg-card/40 p-1">
       {#each engines as e (e.id)}

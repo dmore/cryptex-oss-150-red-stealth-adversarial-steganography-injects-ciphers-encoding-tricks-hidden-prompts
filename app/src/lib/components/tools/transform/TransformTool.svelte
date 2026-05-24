@@ -10,6 +10,8 @@
   import TransformTile from './TransformTile.svelte';
   import TransformOptions from './TransformOptions.svelte';
   import { transformState } from './transform.state.svelte';
+  import { runInWorker, MAX_INPUT_BYTES } from '$lib/workers/runInWorker';
+  import { errorLogger } from '$lib/errors/logger';
   import Copy from 'lucide-svelte/icons/copy';
   import ArrowLeft from 'lucide-svelte/icons/arrow-left';
   import ArrowRight from 'lucide-svelte/icons/arrow-right';
@@ -17,7 +19,6 @@
   import Star from 'lucide-svelte/icons/star';
   import Clock from 'lucide-svelte/icons/clock';
   import X from 'lucide-svelte/icons/x';
-  import UsageHint from '$lib/components/shell/UsageHint.svelte';
 
   // Shorthand alias — `s.input`, `s.direction`, etc. read/write module-level $state.
   const s = transformState;
@@ -45,18 +46,60 @@
     lastUsed.ordered.map((n) => getTransformer(n)).filter((t): t is Transformer => !!t)
   );
 
-  const output = $derived.by(() => {
+  // Output is computed via `runInWorker` so inputs ≥50 KB run off the main thread.
+  // For <50 KB inputs (the common case) runInWorker takes the in-thread fast
+  // path so we keep the live-preview feel without a worker round-trip.
+  // 1 MB hard cap is enforced by runInWorker itself (throws CryptexError).
+  let output = $state('');
+  let lastReportedOversize = '';
+
+  $effect(() => {
     // eslint-disable-next-line @typescript-eslint/no-unused-expressions
     s.optsTick; // re-run when options change
-    if (!active || !s.input) return '';
-    try {
-      const opts = getMergedTransformOptions(active);
-      if (s.direction === 'encode') return active.func(s.input, opts);
-      return active.reverse ? active.reverse(s.input, opts) : '';
-    } catch (err) {
-      console.error('transform failed', err);
-      return '';
+    const a = active;
+    const text = s.input;
+    const dir = s.direction;
+    if (!a || !text) {
+      output = '';
+      return;
     }
+    // Pre-check the 1 MB cap so we can surface a single ErrorPanel rather than
+    // throwing on every keystroke. runInWorker would throw too, but we avoid
+    // calling it past the limit.
+    if (text.length > MAX_INPUT_BYTES) {
+      output = '';
+      // Only report once per input change (keyed by length+first chars) so we
+      // don't spam toasts as the user keeps typing.
+      const key = `${text.length}:${text.slice(0, 24)}`;
+      if (key !== lastReportedOversize) {
+        lastReportedOversize = key;
+        errorLogger.report(
+          new Error('Input exceeds 1 MB cap. Trim the input or split into batches.'),
+          { toastMessage: 'Input exceeds 1 MB cap. Trim the input or split into batches.' }
+        );
+      }
+      return;
+    }
+    lastReportedOversize = '';
+    if (dir === 'decode' && !a.reverse) {
+      output = '';
+      return;
+    }
+    const controller = new AbortController();
+    const opts = getMergedTransformOptions(a);
+    runInWorker(a.name, dir, text, opts, { signal: controller.signal })
+      .then((result) => {
+        output = result;
+      })
+      .catch((err) => {
+        // Aborts are expected when input changes mid-flight; ignore.
+        if ((err as Error)?.name === 'AbortError') return;
+        // Tool errors (e.g., transformer throws on bad input) — surface but
+        // don't spam toasts: log to console + clear output.
+        if (import.meta.env.DEV) console.error('transform failed', err);
+        output = '';
+      });
+    return () => controller.abort();
   });
 
   function tilePreview(t: Transformer): string {
@@ -104,29 +147,6 @@
 </script>
 
 <section class="space-y-6">
-  <!-- Header -->
-  <header class="space-y-2">
-    <div class="flex items-center gap-2">
-      <h1 class="font-serif text-3xl sm:text-4xl tracking-tight text-balance">
-        Transform <span class="text-primary italic">lab</span>
-      </h1>
-      <UsageHint
-        title="Transform lab · Usage"
-        bullets={[
-          'Pick a category or search for a transform by name.',
-          'Encode/Decode toggles direction; greyed out if not reversible.',
-          'Star a transform to pin it to Favorites.',
-          'Some transforms have options — they expand below the tile.'
-        ]}
-        note="All 159 transforms run in your browser — no network calls."
-      />
-    </div>
-    <p class="text-muted-foreground max-w-2xl text-sm sm:text-base">
-      {Object.keys(transformers).length} transforms — encodings, classical &amp; modern ciphers, Unicode styles, ancient scripts, and steganography.
-      Pick any tile to encode or decode the text on the left.
-    </p>
-  </header>
-
   <!-- Input + Output row -->
   <div class="grid gap-4 lg:grid-cols-[1fr_auto_1fr]">
     <!-- Input -->
