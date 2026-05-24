@@ -20,6 +20,7 @@ import type { ToolRun, HistoryQuery } from './types';
 import { Errors, isCryptexError } from '$lib/errors/types';
 import { errorLogger } from '$lib/errors/logger';
 import { isOverSoftQuota } from './quota';
+import { notify } from '$lib/stores/toast.svelte';
 
 const INDEX_KEY = 'cryptex.history.index.v2';
 const LS_FALLBACK_KEY = 'cryptex.history.fallback.v2';
@@ -123,6 +124,13 @@ function saveFallback(runs: ToolRun[]): void {
 
 let _runs = $state<ToolRun[]>(loadIndex());
 
+/**
+ * One-shot toast guard: once we warn the user we've crossed the soft cap,
+ * don't pester them again this session. Reset on full clear() so a fresh
+ * session can warn again.
+ */
+let _quotaToastFired = false;
+
 function genId(): string {
   return `r_${Math.random().toString(36).slice(2, 10)}_${Date.now().toString(36)}`;
 }
@@ -196,6 +204,16 @@ export async function record(init: RecordInput): Promise<ToolRun> {
     const unpinned = _runs.filter((r) => !r.pinned).slice(0, 150);
     _runs = [...pinned, ...unpinned].sort((a, b) => b.startedAt - a.startedAt);
     saveIndex(_runs);
+    // One soft-cap warning per session — auto-prune just fired and we are
+    // still over the cap (pinned runs alone can exceed it).
+    if (!_quotaToastFired && isOverSoftQuota()) {
+      _quotaToastFired = true;
+      try {
+        notify.warn('History over soft cap — auto-pruned to 150 latest unpinned runs.');
+      } catch {
+        // Toast store may be unreachable in non-browser test envs; ignore.
+      }
+    }
   }
 
   return run;
@@ -301,11 +319,63 @@ export function exportJson(): string {
   return JSON.stringify(_runs, null, 2);
 }
 
+/**
+ * Markdown export — grouped by toolId, newest-first within each group.
+ * Mirrors the legacy sessionLog.toMarkdown() shape so users can keep using
+ * the same destination format after the migration.
+ */
+export function exportMarkdown(): string {
+  const grouped: Record<string, ToolRun[]> = {};
+  for (const r of _runs) (grouped[r.toolId] ||= []).push(r);
+  for (const g of Object.values(grouped)) g.sort((a, b) => b.startedAt - a.startedAt);
+
+  const lines: string[] = [];
+  const now = new Date();
+  lines.push(`# Cryptex history · ${now.toISOString()}`, '');
+  const toolCount = Object.keys(grouped).length;
+  lines.push(
+    `**${_runs.length} run${_runs.length === 1 ? '' : 's'}** across ${toolCount} tool${toolCount === 1 ? '' : 's'}.`,
+    ''
+  );
+  for (const [toolId, items] of Object.entries(grouped)) {
+    lines.push(`## ${toolId} · ${items.length}`, '');
+    for (const r of items) {
+      const when = new Date(r.startedAt).toISOString().replace('T', ' ').replace(/\.\d+Z$/, 'Z');
+      const op =
+        typeof r.params.operation === 'string'
+          ? (r.params.operation as string)
+          : r.status;
+      const label = typeof r.params.label === 'string' ? ` · ${r.params.label}` : '';
+      lines.push(`### ${op}${label} · \`${when}\` · ${r.status}`, '');
+      if (r.pinned) lines.push('_pinned_', '');
+      if (r.annotation) lines.push(`> ${r.annotation}`, '');
+      if (r.inputSummary) {
+        lines.push('**Input**', '', '```', r.inputSummary, '```', '');
+      }
+      if (r.outputSummary) {
+        lines.push('**Output**', '', '```', r.outputSummary, '```', '');
+      }
+      if (r.errorMessage) {
+        lines.push(`**Error** · \`${r.errorCategory ?? 'unknown'}\` — ${r.errorMessage}`, '');
+      }
+      const ps = { ...r.params } as Record<string, unknown>;
+      delete ps.operation;
+      delete ps.label;
+      if (Object.keys(ps).length > 0) {
+        lines.push(`**Params** · \`${JSON.stringify(ps)}\``, '');
+      }
+      lines.push('---', '');
+    }
+  }
+  return lines.join('\n');
+}
+
 /** Reset module state — TEST-ONLY. Production code should never call this. */
 export function _resetForTests(): void {
   _runs = [];
   _idbProbed = false;
   _idbAvailable = false;
+  _quotaToastFired = false;
   if (browser) {
     localStorage.removeItem(INDEX_KEY);
     localStorage.removeItem(LS_FALLBACK_KEY);
@@ -324,5 +394,6 @@ export const history = {
   pin,
   annotate,
   clear,
-  exportJson
+  exportJson,
+  exportMarkdown
 };

@@ -5,7 +5,13 @@
  * across the 13 tools. Resets on page reload by design — zero disk footprint
  * for adversarial prompts. Exported to JSON or Markdown on demand so users
  * can preserve a session themselves.
+ *
+ * Wave 4.2 compat shim: every `record()` and `recordError()` call also
+ * fans-out to the persistent history v2 store (`$lib/history/store.svelte`)
+ * as a fire-and-forget side effect. The legacy in-memory API surface is
+ * unchanged so the 13 existing callers stay working without edits.
  */
+import { history } from '$lib/history/store.svelte';
 
 export type ToolId =
   | 'transform'
@@ -46,9 +52,10 @@ export const sessionLog = {
 
   /** Record a user operation. Drops oldest if ring buffer is full. */
   record(entry: Omit<SessionEntry, 'id' | 'timestamp'> & { timestamp?: number }): void {
+    const timestamp = entry.timestamp ?? Date.now();
     const full: SessionEntry = {
       id: nextId++,
-      timestamp: entry.timestamp ?? Date.now(),
+      timestamp,
       tool: entry.tool,
       operation: entry.operation,
       label: entry.label,
@@ -58,6 +65,60 @@ export const sessionLog = {
     };
     const next = [...entries, full];
     entries = next.length > MAX_ENTRIES ? next.slice(next.length - MAX_ENTRIES) : next;
+
+    // Fan-out to persistent history v2. Fire-and-forget; never let a
+    // history store failure (storage quota, IDB error, etc.) regress the
+    // in-memory record path callers rely on.
+    try {
+      const params: Record<string, unknown> = { operation: entry.operation };
+      if (entry.label !== undefined) params.label = entry.label;
+      if (entry.options) {
+        for (const [k, v] of Object.entries(entry.options)) params[k] = v;
+      }
+      void history.record({
+        toolId: entry.tool,
+        startedAt: timestamp,
+        finishedAt: timestamp,
+        status: 'done',
+        input: full.input,
+        output: full.output,
+        params
+      });
+    } catch {
+      // Swallow — legacy in-memory ring is the source of truth for this API.
+    }
+  },
+
+  /**
+   * Record an error entry. Used by `errorLogger.report()` for audit. Only
+   * persists to history v2 — does not add to the in-memory ring (the ring
+   * is for user-driven operations; errors land in History under status:'error').
+   */
+  recordError(entry: {
+    category: string;
+    message: string;
+    context?: Record<string, unknown>;
+    timestamp: number;
+  }): void {
+    try {
+      const params: Record<string, unknown> = { category: entry.category };
+      if (entry.context) {
+        for (const [k, v] of Object.entries(entry.context)) params[k] = v;
+      }
+      void history.record({
+        toolId: typeof params.toolId === 'string' ? (params.toolId as string) : 'system',
+        startedAt: entry.timestamp,
+        finishedAt: entry.timestamp,
+        status: 'error',
+        input: entry.message,
+        output: '',
+        params,
+        errorCategory: entry.category,
+        errorMessage: entry.message
+      });
+    } catch {
+      // Audit failures must never crash the error logger itself.
+    }
   },
 
   /** Clear the in-memory log. */
