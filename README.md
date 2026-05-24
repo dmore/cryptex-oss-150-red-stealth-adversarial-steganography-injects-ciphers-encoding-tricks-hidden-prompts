@@ -8,9 +8,9 @@
     docs/img/screenshot-harmbench.png       third feature shot
 -->
 <p align="center">
-  <img src="docs/img/logo.png" alt="Cryptex OSS" width="100%">
-</p>
+<img src="docs/img/logo.png" alt="Cryptex OSS" width="7%">
 <h1 align="center">Cryptex OSS</h1>
+</p>
 <p align="center">
   <strong>Open-source LLM red-team lab.</strong><br>
   159 transforms, 25 tool surfaces, BYOK gateway. Runs in your browser.
