@@ -2,6 +2,25 @@
 
 All notable changes to Cryptex OSS land here. Format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/). Versioning follows [SemVer](https://semver.org/).
 
+## [2.1.2] - 2026-05-25
+
+Publish-fix reissue of 2.1.1. Same application code, same v2.1.1 reactivity fixes; the difference is that 2.1.1's GHCR image was never built (a multi-day codeload.github.com outage took down every `docker/setup-qemu-action`, `docker/setup-buildx-action`, etc. download in the runner's prepare-actions phase). 2.1.2 ships with a reworked workflow that does not depend on any `docker/*` action and the image actually publishes.
+
+### Fixed (CI)
+
+- `.github/workflows/docker.yml` rewritten to call the Docker CLI directly. Removed dependencies on `docker/setup-qemu-action`, `docker/setup-buildx-action`, `docker/login-action`, `docker/metadata-action`, and `docker/build-push-action`. The runner's pre-installed Docker 27+ has buildx built in; `docker login`, `docker buildx create`, `docker buildx build --push`, and shell-driven tag derivation cover the rest. The only remaining GitHub Action is `actions/checkout@v4`, which uses a different CDN and has not exhibited the codeload failure pattern.
+- QEMU emulators installed via `docker run --privileged tonistiigi/binfmt:latest --install arm64` (Docker Hub, off codeload entirely). On Docker Hub flake the workflow degrades to amd64-only with a `::warning::` annotation and arm64 catches up on the next run.
+
+### Changed
+
+- Image tag set now emits **both** `v`-prefixed and non-prefixed semver forms so `:v2.1.2`, `:2.1.2`, `:v2.1`, `:2.1`, `:v2`, `:2`, `:latest`, plus `:sha-<short>` are all valid pulls. Matches the historical `:2.1.0` convention while staying compatible with users who type the `v`-prefixed form.
+- Root `package.json` version 2.1.1 -> 2.1.2.
+
+### Notes
+
+- No application code changed between 2.1.1 and 2.1.2. The 16 reactivity stability tests from 2.1.1 still cover the four crash routes (`/redteam/probe-lab`, `/redteam/indirect-injection`, `/promptcraft`, `/anticlassifier`).
+- The `v2.1.1` git tag remains in history but resolves to a commit whose workflow could not publish. `v2.1.2` is the first tag in the 2.1.x line that produces a pullable image. If you were trying to pin to `v2.1.1`, use `v2.1.2` (or `2.1.2`, or `2.1`, or `latest`) instead.
+
 ## [2.1.1] - 2026-05-25
 
 Svelte 5 reactivity hotfix wave. Resolves user-reported browser "Page Unresponsive" dialog on `/redteam/probe-lab` and `/redteam/indirect-injection`, plus two latent loops on `/promptcraft` and `/anticlassifier` first-mount with legacy unqualified model ids.
@@ -111,6 +130,7 @@ Initial open-source release.
 - Docker image + Dokploy-tuned `docker-compose.yml` + strict-CSP `nginx.conf`.
 - MIT license.
 
+[2.1.2]: https://github.com/m4xx101/cryptex-oss/releases/tag/v2.1.2
 [2.1.1]: https://github.com/m4xx101/cryptex-oss/releases/tag/v2.1.1
 [2.1.0]: https://github.com/m4xx101/cryptex-oss/releases/tag/v2.1.0
 [2.0.1]: https://github.com/m4xx101/cryptex-oss/releases/tag/v2.0.1

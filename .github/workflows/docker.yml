@@ -90,13 +90,16 @@ jobs:
           declare -a TAGS
 
           if [[ "$GITHUB_REF" == refs/tags/v*.*.* ]]; then
-            # Tag push: e.g. refs/tags/v2.1.1
+            # Tag push: e.g. refs/tags/v2.1.2
+            # Emit BOTH "v"-prefixed and non-prefixed forms so :v2.1.2 and
+            # :2.1.2 are both pullable. v2.1.0 and earlier used the no-v
+            # convention via metadata-action default; we keep that working.
             VER="${GITHUB_REF#refs/tags/v}"
             MAJOR="${VER%%.*}"
             MINOR_NUM="${VER#*.}"; MINOR_NUM="${MINOR_NUM%%.*}"
-            TAGS+=("${IMG}:v${VER}")
-            TAGS+=("${IMG}:v${MAJOR}.${MINOR_NUM}")
-            TAGS+=("${IMG}:v${MAJOR}")
+            TAGS+=("${IMG}:v${VER}")          ; TAGS+=("${IMG}:${VER}")
+            TAGS+=("${IMG}:v${MAJOR}.${MINOR_NUM}") ; TAGS+=("${IMG}:${MAJOR}.${MINOR_NUM}")
+            TAGS+=("${IMG}:v${MAJOR}")        ; TAGS+=("${IMG}:${MAJOR}")
             TAGS+=("${IMG}:latest")
           elif [[ "$GITHUB_REF" == refs/heads/main || "$GITHUB_REF" == refs/heads/master ]]; then
             TAGS+=("${IMG}:latest")
