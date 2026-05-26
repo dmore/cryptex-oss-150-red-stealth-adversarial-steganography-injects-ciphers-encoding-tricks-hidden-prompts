@@ -1,16 +1,21 @@
 name: Docker build
 
-# Strategy: publish linux/amd64 unconditionally (the most common arch for
-# self-hosters on VPS), then attempt linux/arm64 as a best-effort multi-arch
-# manifest. If arm64 emulation cannot be installed, the workflow still
-# leaves a working amd64 image at every tag.
+# Multi-arch publish to ghcr.io/m4xx101/cryptex-oss without depending on any
+# docker/* GitHub Actions. Background: codeload.github.com regularly returns
+# 500s for docker/setup-qemu-action, docker/setup-buildx-action, and friends.
+# Those archive downloads happen in the runner's "Prepare all required
+# actions" phase before any step runs, so step-level continue-on-error
+# cannot tolerate the failure. The whole workflow aborts in ~9 seconds.
 #
-# QEMU setup uses tonistiigi/binfmt directly (a docker run) instead of the
-# docker/setup-qemu-action wrapper. The wrapper has hit transient
-# codeload.github.com download failures that cannot be tolerated with
-# step-level continue-on-error because action archives download before any
-# step runs. tonistiigi/binfmt comes from Docker Hub (separate CDN) so it
-# routes around codeload outages entirely.
+# Fix: only use actions/checkout (different CDN, far more stable) and
+# everything else via the Docker CLI that ships pre-installed on
+# ubuntu-latest. buildx, login, push, metadata, all native commands.
+#
+# Strategy:
+#   - linux/amd64 publishes unconditionally (binfmt not required).
+#   - linux/arm64 publishes when binfmt installs cleanly (best-effort).
+#   - On binfmt install failure, the workflow still publishes amd64 with a
+#     ::warning:: annotation; arm64 catches up on the next push.
 
 on:
   push:
@@ -43,75 +48,121 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # QEMU enables linux/arm64 cross-build on the amd64 runner. We install
-      # via tonistiigi/binfmt direct from Docker Hub (the docker/setup-qemu-action
-      # wrapper has hit transient codeload.github.com 500s). If the binfmt
-      # install fails (e.g. Docker Hub rate-limit), the next "Resolve build
-      # platforms" step falls back to amd64-only.
-      - name: Install QEMU emulators (binfmt)
+      - name: Install QEMU emulators (binfmt) for arm64
         id: qemu
         continue-on-error: true
-        run: docker run --privileged --rm tonistiigi/binfmt:latest --install arm64
+        run: |
+          docker run --privileged --rm tonistiigi/binfmt:latest --install arm64
+          echo "binfmt arm64 handlers installed"
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GHCR
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Derive image tags
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/m4xx101/cryptex-oss
-          tags: |
-            type=ref,event=branch
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-            type=sha,prefix=sha-,format=short
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
-
-      # Pick the platform set based on whether QEMU came up. Always publish
-      # amd64; only include arm64 if QEMU succeeded.
       - name: Resolve build platforms
         id: platforms
         run: |
           if [ "${{ steps.qemu.outcome }}" = "success" ]; then
             echo "value=linux/amd64,linux/arm64" >> "$GITHUB_OUTPUT"
-            echo "QEMU ready — building multi-arch (amd64 + arm64)."
+            echo "QEMU ready - building multi-arch (amd64 + arm64)."
           else
             echo "value=linux/amd64" >> "$GITHUB_OUTPUT"
             echo "::warning::QEMU setup failed; publishing linux/amd64 only. arm64 will catch up on the next run."
           fi
 
-      - name: Build & push image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
-          platforms: ${{ steps.platforms.outputs.value }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Set up Docker Buildx (CLI)
+        run: |
+          # docker buildx ships native with Docker 23+ on ubuntu-latest.
+          # We just need a container-driver builder for multi-arch.
+          docker buildx create --use --name cryptex-builder --driver docker-container
+          docker buildx inspect --bootstrap
+          docker buildx version
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Resolve image tags
+        id: tags
+        run: |
+          IMG="ghcr.io/m4xx101/cryptex-oss"
+          SHA_SHORT="${GITHUB_SHA:0:7}"
+          # Bash array of full image:tag strings.
+          declare -a TAGS
+
+          if [[ "$GITHUB_REF" == refs/tags/v*.*.* ]]; then
+            # Tag push: e.g. refs/tags/v2.1.1
+            VER="${GITHUB_REF#refs/tags/v}"
+            MAJOR="${VER%%.*}"
+            MINOR_NUM="${VER#*.}"; MINOR_NUM="${MINOR_NUM%%.*}"
+            TAGS+=("${IMG}:v${VER}")
+            TAGS+=("${IMG}:v${MAJOR}.${MINOR_NUM}")
+            TAGS+=("${IMG}:v${MAJOR}")
+            TAGS+=("${IMG}:latest")
+          elif [[ "$GITHUB_REF" == refs/heads/main || "$GITHUB_REF" == refs/heads/master ]]; then
+            TAGS+=("${IMG}:latest")
+            TAGS+=("${IMG}:main")
+          else
+            BRANCH="${GITHUB_REF#refs/heads/}"
+            # Sanitize branch name (replace / with -)
+            BRANCH="${BRANCH//\//-}"
+            TAGS+=("${IMG}:${BRANCH}")
+          fi
+          TAGS+=("${IMG}:sha-${SHA_SHORT}")
+
+          # Emit buildx --tag flags + a comma-separated list for logs.
+          FLAGS=""
+          LIST=""
+          for t in "${TAGS[@]}"; do
+            FLAGS+=" --tag $t"
+            LIST+="${t},"
+          done
+          # GitHub output: use heredoc for multi-line safety
+          {
+            echo "flags<<EOF"
+            echo "${FLAGS}"
+            echo "EOF"
+            echo "list=${LIST%,}"
+          } >> "$GITHUB_OUTPUT"
+          echo "Will tag: ${LIST%,}"
+
+      - name: Build and (maybe) push image
+        env:
+          PLATFORMS: ${{ steps.platforms.outputs.value }}
+          TAG_FLAGS: ${{ steps.tags.outputs.flags }}
+        run: |
+          PUSH_FLAG=""
+          OUTPUT_FLAG=""
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            PUSH_FLAG="--push"
+          else
+            # PR builds: just verify the image builds, do not push.
+            OUTPUT_FLAG="--output=type=image,push=false"
+          fi
+
+          # GitHub Actions cache backend for buildx layer cache.
+          # This works through the gha-cache service, not codeload.
+          docker buildx build \
+            $PUSH_FLAG \
+            $OUTPUT_FLAG \
+            --platform "$PLATFORMS" \
+            --cache-from "type=gha" \
+            --cache-to "type=gha,mode=max" \
+            $TAG_FLAGS \
+            --file Dockerfile \
+            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            --label "org.opencontainers.image.created=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+            .
 
       - name: Build single-arch image for local smoke test
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: Dockerfile
-          push: false
-          load: true
-          platforms: linux/amd64
-          tags: cryptex:ci
-          cache-from: type=gha
+        run: |
+          # Local-load amd64 image so the next step can `docker run` it.
+          docker buildx build \
+            --load \
+            --platform linux/amd64 \
+            --cache-from "type=gha" \
+            --tag cryptex:ci \
+            --file Dockerfile \
+            .
 
       - name: Smoke-test the container
         run: |
@@ -135,16 +186,22 @@ jobs:
 
       - name: Publish summary
         if: always()
+        env:
+          PLATFORMS: ${{ steps.platforms.outputs.value }}
+          TAG_LIST: ${{ steps.tags.outputs.list }}
         run: |
-          echo "## Docker build summary" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Platforms attempted: \`${{ steps.platforms.outputs.value }}\`" >> "$GITHUB_STEP_SUMMARY"
-          if [ "${{ steps.qemu.outcome }}" != "success" ]; then
-            echo "- ⚠️  QEMU setup failed; arm64 was skipped this run." >> "$GITHUB_STEP_SUMMARY"
-          fi
-          echo "- Image tags pushed (if not PR): \`${{ steps.meta.outputs.tags }}\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Pull from a clean machine:" >> "$GITHUB_STEP_SUMMARY"
-          echo '```bash' >> "$GITHUB_STEP_SUMMARY"
-          echo 'docker run -d --name cryptex --restart unless-stopped \' >> "$GITHUB_STEP_SUMMARY"
-          echo '  -p 8080:80 ghcr.io/m4xx101/cryptex-oss:latest' >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "## Docker build summary"
+            echo ""
+            echo "- Platforms attempted: \`${PLATFORMS}\`"
+            if [ "${{ steps.qemu.outcome }}" != "success" ]; then
+              echo "- ⚠️  QEMU setup failed; arm64 was skipped this run."
+            fi
+            echo "- Tags pushed (skipped on PR): \`${TAG_LIST}\`"
+            echo ""
+            echo "Pull from a clean machine:"
+            echo '```bash'
+            echo 'docker run -d --name cryptex --restart unless-stopped \'
+            echo '  -p 8080:80 ghcr.io/m4xx101/cryptex-oss:latest'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
