@@ -37,6 +37,9 @@ RUN cd app && npm ci --no-audit --no-fund --prefer-offline
 COPY app ./app
 COPY scripts ./scripts
 COPY nginx.conf ./nginx.conf
+# Root package.json — read by app/vite.config.ts at build time to inject
+# __APP_VERSION__ + __APP_REPO__ as compile-time globals.
+COPY package.json ./package.json
 
 # Produce the static output at /build/app/build/. The build script also runs
 # scripts/compute-csp-hashes.cjs as a post-step (see app/package.json), which
