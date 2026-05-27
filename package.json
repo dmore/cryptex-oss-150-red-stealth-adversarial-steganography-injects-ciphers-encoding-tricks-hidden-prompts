@@ -1,24 +1,19 @@
 {
   "name": "cryptex-oss",
-  "version": "2.4.0",
+  "version": "2.4.2",
   "description": "Open-source LLM red-teaming toolkit. 159 transforms, 25 tool surfaces, BYOK gateway. Static site, runs in your browser.",
   "scripts": {
     "build": "cd app && npm ci && npm run build",
     "dev": "cd app && npm run dev",
     "check": "cd app && npm run check",
-    "test": "npm run test:all",
-    "test:unit": "cd app && npx vitest run",
-    "test:universal": "node tests/test_universal.js",
-    "test:steg": "node tests/test_steganography_options.js",
-    "test:lexeme": "node tests/test_lexeme_analysis.js",
-    "test:lexeme-ui": "node tests/test_lexeme_ui_surface.js",
-    "test:all": "npm run test:universal && npm run test:steg && npm run test:lexeme && npm run test:lexeme-ui"
+    "test": "cd app && npx vitest run",
+    "test:unit": "cd app && npx vitest run"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/m4xx101/cryptex-oss.git"
   },
-  "homepage": "https://cryptex.m4xx.cfd",
+  "homepage": "https://github.com/m4xx101/cryptex-oss",
   "bugs": "https://github.com/m4xx101/cryptex-oss/issues",
   "license": "MIT",
   "keywords": [

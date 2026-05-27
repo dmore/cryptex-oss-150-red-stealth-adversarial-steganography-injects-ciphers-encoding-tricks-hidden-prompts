@@ -2,6 +2,100 @@
 
 All notable changes to Cryptex OSS land here. Format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/). Versioning follows [SemVer](https://semver.org/).
 
+## [2.4.2] - 2026-05-28
+
+Bug-fix release. Two user-reported issues + the leftover scrub edits that v2.4.1 missed.
+
+### Fixed
+
+- **Cloud Sync "Test connection" returned "Provider not configured." even with valid creds.** Root cause: `rebuildProvider()` in `app/src/lib/sync/store.svelte.ts` gated provider construction on `_config.enabled === true`, but `CloudSyncPanel.testConnection()` deliberately patches in URL + anon key WITHOUT flipping enabled (test before enable is the intended UX). Decoupled provider construction from the `enabled` flag; the flag now only drives the status chip and the fire-and-forget hooks (which were already gated correctly). New `app/src/lib/sync/__tests__/store.test.ts` locks in 6 invariants.
+- **Tool outputs leaked seed-prompt envelope fragments** like `<rewrite>`, `<safety_reasoning>`, `<deliberation>`, `<policy_check>`, `<self_critique>`, `<think>`, `<mock_system>`, `<internal_deliberation>`. Full audit found three leaking surfaces: `/promptcraft` single-shot (CRITICAL — every one of the 36 mutators), `/redteam/response-attack` (priming turn echoed back), `/redteam/reasoning-attack` (5+ H-CoT scratchpad tags). All three now route through the central `unwrap()` / new `stripEnvelopes()` helpers. The `/history` page also strips on read so pre-fix runs already stored with raw tagged output display cleanly.
+
+### Changed
+
+- `app/src/lib/ai/prompt-scaffold.ts` `OUTPUT_WRAPPERS` registry grows from 3 to 12 entries (added `turn`, `notes`, `safety_reasoning`, `think`, `deliberation`, `policy_check`, `self_critique`, `mock_system`, `internal_deliberation`). New `stripEnvelopes(raw)` helper iterates the full registry — use this on any displayed model response that might echo scaffolding tags. `unwrap()` hardened: falls back to "everything after open tag" when closing tag missing; tolerates markdown code fences around the wrapper block.
+- TAP + Crescendo orchestrators consolidated onto the central `unwrap()` (drop the per-file inline helpers). PAIR's `unwrapTag` kept — its `undefined`-on-miss semantic is load-bearing for the fallback flow at `pair.ts:69`.
+
+### Finalized from v2.4.1
+
+The v2.4.1 scrub commit (`c3bffd4`) caught the file DELETIONS (`supabase/`, `js/`, `build/`, `templates/`, `tests/`, the production-only docs) but missed the file EDITS that were never `git add`-ed before the commit. v2.4.2 picks up those leftover edits so the "clean for the community" cleanup is actually complete:
+
+- `.env.example` rewritten end-to-end — drops 90 lines of sibling-product env vars (`PUBLIC_GODMODE_*`, `ANTHROPIC_API_KEY_1/2/3`, `VITE_AUTH_ENABLED`, `LIVE_SMOKE`, `TEST_PAID_JWT`, `PUBLIC_ADSENSE_CLIENT`, Subsystem A/B/D5 refs). OSS now uses only `BASE_PATH` / `CRYPTEX_PORT` / `TZ`.
+- `CONTRIBUTING.md` rewritten from 434 lines of pre-v2.0 (Vue / `dist/` / `templates/` / `build/build-*.js`) to a 70-line modern SvelteKit-architecture orientation.
+- `CLAUDE.md` drops the obsolete "Legacy parity tests (root)" section and the `src/transformers/index.js` regeneration line.
+- `README.md`, `DEPLOY.md`, `docs/USAGE.md` updated to drop references to deleted test scripts / production-only sections.
+- `.gitignore` drops `GODMODE-rewire.md` + `Offense-Defense-reseasrch.md` scratch-note patterns; adds `wiki/cryptex-recon/findings/`.
+- `app/src/lib/techniques/types.ts` drops `'godmode'` from the `TechniqueCategory` union. Stale Godmode / Subsystem refs scrubbed from `registry.ts`, `strategies.ts`, `__tests__/registry.test.ts`.
+- `src/transformers/cipher/affine.js` + `rot8000.js` + `README.md` updated to drop references to the deleted `build/build-transforms.js`.
+
+### Tests
+
+- 857 → 873 (+16): +13 cases for `unwrap` robustness and the new `stripEnvelopes` helper, +6 cases for the sync store state machine. Existing test suites unchanged.
+
+### Image
+
+- `ghcr.io/m4xx101/cryptex-oss:v2.4.2` (multi-arch `linux/amd64` + `linux/arm64`). `:latest`, `:v2.4`, `:2.4`, `:v2`, `:2` all point at the same SHA.
+
+## [2.4.1] - 2026-05-27
+
+Production-leakage scrub + community hat-tip.
+
+Audit of the OSS repo found a large surface of files that had survived from the pre-v2.0 architecture or from the sibling product's codebase and were never meant to ship to the community. None of these files were referenced by the OSS app at runtime, but they were tracked in git and visible in the public repo. This release deletes them and rewires anything that referenced them.
+
+### Removed (production-only)
+
+- `supabase/functions/` — entire tree (godmode-engine, prompt-synthesizer, Stripe webhook, billing-portal session, checkout session, account delete/export, CSP report, shared auth/CORS/ratelimit helpers).
+- `supabase/migrations/` — production DB schema migrations (initial schema, godmode memory, custom techniques analysis, CSP violations, godmode memory RLS).
+- `supabase/.gitignore`, `supabase/config.toml`, `supabase/tests/rls.sql` — production Supabase project config.
+
+### Removed (pre-v2.0 legacy)
+
+- `js/` — entire pre-SvelteKit frontend (core/, data/, tools/, utils/, app.js).
+- `build/` — pre-v2.0 build scripts (build-index, build-transforms, build-emoji-data, copy-static, inject-tool-scripts, inject-tool-templates, fetch-glitch-data, readme-transform-section).
+- `templates/` — pre-v2.0 HTML templates (anticlassifier.html, bijection.html, decoder.html, fuzzer.html, gibberish.html, promptcraft.html, splitter.html, steganography.html, tokenade.html, tokenizer.html, transforms.html).
+- `tests/` — pre-v2.0 parity tests (test_universal, test_steganography_options, test_lexeme_analysis, test_lexeme_ui_surface). All four depended on the deleted `js/` tree. The authoritative test suite is now `app/`'s vitest run (857 tests).
+- `src/transformers/index.js` — orphan auto-generated manifest with zero remaining consumers (web uses Vite `import.meta.glob`; CLI uses `loader-node.js`).
+
+### Removed (production-only docs)
+
+- `docs/CHAT-PLAYGROUND.md`, `docs/DEPLOYMENT.md` (the Dokploy-and-Subsystem-D5 version; OSS deploy is now documented in `DEPLOY.md` and `README.md`), `docs/SUPABASE-EMAIL-TEMPLATES.md`, `docs/TOOL-SYSTEM.md`, `docs/TOOL_ARCHITECTURE.md` (referenced Vue), `docs/UI-COMPONENTS.md`.
+- `docs/infrastructure/cors-and-csp.md`, `docs/infrastructure/supabase-local.md` — internal engineering references for the sibling SaaS.
+- `docs/prompts/STYLE.md` — internal prompt-style guide.
+
+### Cleaned (source-file leakage)
+
+- `app/src/lib/config/featureFlags.ts` deleted (dead production feature flags with zero consumers in OSS).
+- `app/src/lib/techniques/types.ts` — dropped `'godmode'` from the `TechniqueCategory` union (no producers, no consumers in OSS).
+- `app/src/lib/techniques/registry.ts`, `app/src/lib/components/tools/promptcraft/strategies.ts`, `app/src/lib/techniques/__tests__/registry.test.ts` — stale Godmode / Subsystem B / Subsystem D references in comments scrubbed.
+- `src/transformers/cipher/affine.js`, `src/transformers/cipher/rot8000.js` — IIFE-rationale comments referenced the deleted `build/build-transforms.js`; rewritten to describe the IIFE pattern on its own merits.
+- `src/transformers/README.md` "After Adding" section — dropped references to deleted `npm run build:transforms` and `build/readme-transform-section.js`; new instructions reflect the v2.0 SvelteKit Vite-glob discovery.
+
+### Cleaned (project metadata)
+
+- `package.json` — `homepage` changed from `cryptex.m4xx.cfd` (sibling product) to `https://github.com/m4xx101/cryptex-oss` (this repo). Dead test scripts dropped (`test:universal`, `test:steg`, `test:lexeme`, `test:lexeme-ui`, `test:all`); `npm test` now aliases `cd app && npx vitest run`.
+- `.env.example` — rewritten. The 80+ line file was full of production-only env vars (`PUBLIC_GODMODE_*`, `ANTHROPIC_API_KEY_1/2/3`, `VITE_AUTH_ENABLED`, `PUBLIC_SUPABASE_URL`, `LIVE_SMOKE`, `TEST_PAID_JWT`, `PUBLIC_ADSENSE_CLIENT`, etc.) for the sibling product's Edge Functions; OSS uses only `BASE_PATH` / `CRYPTEX_PORT` / `TZ`. Provider keys and Cloud Sync Supabase creds are configured at runtime via the Settings UI, never via env file.
+- `.gitignore` — dropped local scratch-note ignore patterns (`GODMODE-rewire.md`, `Offense-Defense-reseasrch.md`) tied to the sibling product; added `wiki/cryptex-recon/findings/` ignore (recon skill's draft-proposal output is per-user, not committed).
+- `CLAUDE.md` — dropped "Legacy parity tests (root)" section and the `src/transformers/index.js` regeneration line (both now obsolete).
+- `README.md` — pre-PR checklist no longer runs `npm run test:all`. The "Add a transformer" instructions no longer instruct contributors to update `tests/test_universal.js`.
+- `CONTRIBUTING.md` — fully rewritten from 434 lines of pre-v2.0 (Vue / `dist/` / `templates/` / `build/build-*.js`) to a 70-line modern SvelteKit-architecture orientation.
+- `DEPLOY.md` — GitHub Actions step list no longer mentions `npm run test:all`; "Chat playground CSP notes" section renamed and reframed as "Image / PDF / WASM CSP requirements" since the rationale applies to the OSS toolkit's image upload / OCR / PDF / multimodal probes, not a chat playground that the OSS doesn't ship.
+- `docs/USAGE.md` — removed the "Cryptex Production" sales section that pitched the sibling product's features inside an OSS user guide. The sibling product is still acknowledged in the README footer.
+
+### Added
+
+- `.github/workflows/deploy.yml` — Pages deploy workflow that `DEPLOY.md` "GitHub Pages" section was promising but didn't ship. Forks now get a working `Settings → Pages → Source: GitHub Actions` flow out of the box.
+- README footer — a one-line P.S. crediting [elder-plinius/P4RS3LT0NGV3](https://github.com/elder-plinius/P4RS3LT0NGV3) as the spiritual ancestor of the genre. Cryptex OSS was built from scratch; this is a hat-tip, not a derivation.
+
+### Tests
+
+- 857 / 857 unit tests still passing after the scrub.
+- 0 type-check errors.
+- The 4 deleted legacy parity tests provided no coverage not already in the vitest suite.
+
+### Net diff
+
+~110 files deleted, ~10 files edited. Most of the deletions are sibling-product Edge Functions and pre-v2.0 architecture files. The OSS app under `app/` is untouched except for the small comment / type-union cleanups above. Zero behavior changes for the user-facing tools.
+
 ## [2.4.0] - 2026-05-27
 
 SOTA upgrade wave on the four 2025-2026 reasoning-model attack labs introduced in v2.3.0. Each lab grows from a single technique demonstrator into a multi-variant attack surface with auto-rotation and broader vault seeding. Vault total goes from 339 -> 379 (+40 across the four labs).
