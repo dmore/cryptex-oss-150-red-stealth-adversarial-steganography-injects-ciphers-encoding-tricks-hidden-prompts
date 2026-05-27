@@ -3,7 +3,7 @@
 Every payload in Cryptex's Vault subsections is sourced from a permissively-licensed
 corpus, a research paper's openly-released artifacts, a public-domain Unicode reference,
 or a community-shared red-team write-up. This file is the authoritative provenance
-record for all 309 bundled seed items shipped under `app/src/lib/vault/seeds/` (and
+record for all 379 bundled seed items shipped under `app/src/lib/vault/seeds/` (and
 the small WordNet helper subset under `app/src/lib/fuzzer/`).
 
 Cryptex OSS itself is MIT-licensed (see [`/LICENSE`](../../../../LICENSE)). Bundled
@@ -47,12 +47,12 @@ license strings appear in the corpus.
 | `seeds/fingerprinter.json` | 6 | MIT |
 | `seeds/watermark.json` | 5 | MIT |
 | `seeds/anticlassifier.json` | 5 | MIT |
-| `seeds/reasoning-attack.json` | 6 | MIT |
-| `seeds/stacked-cipher.json` | 8 | MIT |
-| `seeds/response-attack.json` | 6 | MIT |
-| `seeds/abliteration.json` | 10 | MIT |
+| `seeds/reasoning-attack.json` | 17 | MIT |
+| `seeds/stacked-cipher.json` | 14 | MIT |
+| `seeds/response-attack.json` | 15 | MIT |
+| `seeds/abliteration.json` | 24 | MIT |
 | `fuzzer/wordnet-subset.json` | ~55 | WordNet (BSD-style) |
-| **Total bundled vault items** | **339** | — |
+| **Total bundled vault items** | **379** | — |
 
 ## Source-by-source breakdown
 

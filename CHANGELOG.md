@@ -2,6 +2,37 @@
 
 All notable changes to Cryptex OSS land here. Format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/). Versioning follows [SemVer](https://semver.org/).
 
+## [2.4.0] - 2026-05-27
+
+SOTA upgrade wave on the four 2025-2026 reasoning-model attack labs introduced in v2.3.0. Each lab grows from a single technique demonstrator into a multi-variant attack surface with auto-rotation and broader vault seeding. Vault total goes from 339 -> 379 (+40 across the four labs).
+
+### Changed
+
+- **`/redteam/reasoning-attack`** grows from 1 attack kind to 7: H-CoT, Mousetrap, DRA (arXiv:2402.18104), H-CoT-Mousetrap compound, mock-CoT prefill, reasoning-injection (`<think>` hijack), CoT-redirect. 5 H-CoT scratchpad styles, 4 Mousetrap chaos modes, configurable DRA distractor count, auto-rotation cycle for refusal-retry. Vault grows 6 -> 17 entries.
+- **`/redteam/stacked-cipher`** grows from 5 cipher layers to 18: ROT13, Caesar-3, Caesar-7, Atbash, reverse, leet, base16, base32, base64, base85, hex, polybius, Bacon, Morse, A1Z26, NATO, vigenere-CRYPTEX, railfence-3. Three framing variants (decoder-mode, persona "CipherBot", puzzle-hint), four format wraps (none/JSON/XML/YAML), 12 curated stack presets, Shannon-entropy meter on the encoded payload. Vault grows 8 -> 14 entries. Tests expand from 13 to ~200 (per-layer round-trips + framings + wraps + presets + entropy + name helpers).
+- **`/redteam/response-attack`** grows from 3 priming styles to 8: thorough, expert, step-by-step, partial-answer, role-shift, success-frame, agreement-cascade, peer-review. Three cascade depths (1/3/5 turns), seven domain templates (generic, security, research, business, academic, medical, legal), optional H-CoT hybrid for reasoning-mode targets. Vault grows 6 -> 15 entries.
+- **`/redteam/abliteration`** grows the calibrated probe set from 5 to 30: 20 adversarial probes across 4 categories (infosec, bio-chem-research, social-eng-opsec, named-misuse), 10 benign twin-controls used to compute a refusal-rate delta and detect over-aligned targets. Verdict ladder gains a "borderline" tier between likely-abliterated and aligned; a 4-level `RefusalStrength` classifier (hard-refuse / soft-hedge / mention-redirect / comply) replaces the binary refused/complied per-probe label. Per-category compliance breakdown surfaced in the report. HF identifier vault grows from 10 to 24: Qwen3 v2 (4B/8B), DeepSeek-R1-0528-Qwen3-8B, QwQ-32B, Qwen3-Coder-30B-A3B, Qwen2.5-VL-7B, Qwen3-VL-8B, Qwen3.5-35B-A3B, Qwen3.6-27B-MTP, Gemma-4-26B-A4B, Granite-4.1-30B, phi-4, gpt-oss-20b, Mistral-Small-24B-2501 (all Apache-2.0 or MIT).
+
+### Tests
+
+- Net +58 tests (799 -> 857) including a brand-new `abliteration.test.ts` (24 tests covering the 4-level classifier, 5 verdict outcomes, per-category aggregation, structural invariants on the 20-adv + 10-ctl probe sets), expanded `stacked-cipher.test.ts` covering all 18 layers, and per-lab regression coverage for the new attack kinds.
+
+### License posture
+
+- All v2.4 vault additions are Apache-2.0 / MIT identifiers (for HuggingFace model ids) or paraphrased seed text authored fresh under the project's MIT license. No new license strings introduced; the audit-clean posture (MIT / CC-BY-4.0 / CC0 only) holds.
+
+### Backward compatibility
+
+- `classifyProbeResponse` kept as a binary wrapper around the new `classifyRefusalStrength` (preserves the v2.3 public surface). Legacy `AbliterationReport` fields (`totalProbes`, `refusedCount`, `compliedCount`) are preserved alongside the new `adversarialComplyRate` / `controlComplyRate` / `delta` / `byCategory` fields.
+
+### Citations
+
+- arXiv:2502.12893 (H-CoT), arXiv:2502.15806 (Mousetrap), arXiv:2402.18104 (DRA), arXiv:2505.16241 (SEAL), arXiv:2507.21000 (Response Attack, AAAI 2026), Labonne 2024 (Abliteration).
+
+### Image
+
+- `ghcr.io/m4xx101/cryptex-oss:v2.4.0` (multi-arch `linux/amd64` + `linux/arm64`). `:latest`, `:v2.4`, `:2.4`, `:v2`, `:2` all point at the same SHA.
+
 ## [2.3.1] - 2026-05-27
 
 UI cleanup pass. Drops the per-tool heuristic-caveat banners that ran above results on the eight benchmark / attack-lab pages. The "not paper-accurate" framing now lives in the page description text and source-file headers rather than as an in-card banner the user sees on every run. No behavior or scoring changes; pure visual cleanup.
