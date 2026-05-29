@@ -25,6 +25,7 @@
   import Layers from 'lucide-svelte/icons/layers';
   import MessageSquareText from 'lucide-svelte/icons/message-square-text';
   import Unplug from 'lucide-svelte/icons/unplug';
+  import Rocket from 'lucide-svelte/icons/rocket';
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   export type Tab = {
@@ -51,6 +52,9 @@
   // tokenizer overlapped with /fuzzer + standard LLM dev tools, bijection
   // was functionally subsumed by /transforms.
   export const tabs: Tab[] = [
+    // v2.6 (Wave 17): Campaign front door — the "it just works" pipeline.
+    // First tab; also the home-route landing page.
+    { href: '/campaign',             label: 'Campaign',     icon: Rocket,           toolId: 'campaign',       group: 'techniques', status: 'live' },
     { href: '/transforms',           label: 'Transform',    icon: Wand,             toolId: 'transforms',     group: 'techniques', status: 'live' },
     { href: '/decode',               label: 'Decode',       icon: ScanSearch,       toolId: 'decode',         group: 'techniques', status: 'live' },
     { href: '/emoji',                label: 'Emoji',        icon: Smile,            toolId: 'emoji',          group: 'techniques', status: 'live' },

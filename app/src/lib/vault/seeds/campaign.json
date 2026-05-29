@@ -1,0 +1,36 @@
+[
+  {
+    "id": "campaign-example-roleplay",
+    "schemaVersion": 1,
+    "title": "Example · role-play framing winner",
+    "description": "Illustrative saved-winner shape. Real entries are captured from the Campaign report's Save-to-Vault button after a run.",
+    "payload": {
+      "strategyId": "mut:roleplay",
+      "goal": "<your tested goal>",
+      "payloadSent": "<the exact prompt that produced a bypass>",
+      "targetModel": "openrouter:openrouter/auto"
+    },
+    "tags": ["example", "campaign-winner"],
+    "source": "bundled",
+    "sourceUrl": "https://github.com/m4xx101/cryptex-oss",
+    "license": "MIT",
+    "addedAt": 0
+  },
+  {
+    "id": "campaign-example-cipher",
+    "schemaVersion": 1,
+    "title": "Example · stacked-cipher winner",
+    "description": "Illustrative saved-winner shape for a SEAL-family stacked-cipher strategy.",
+    "payload": {
+      "strategyId": "cipher:classic-rot-b64",
+      "goal": "<your tested goal>",
+      "payloadSent": "<the framed cipher prompt that produced a bypass>",
+      "targetModel": "openrouter:openrouter/auto"
+    },
+    "tags": ["example", "campaign-winner", "cipher"],
+    "source": "bundled",
+    "sourceUrl": "https://github.com/m4xx101/cryptex-oss",
+    "license": "MIT",
+    "addedAt": 0
+  }
+]
