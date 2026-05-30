@@ -1,7 +1,8 @@
 <script lang="ts">
   import '../app.css';
   import { onMount } from 'svelte';
-  import { page } from '$app/state';
+  import { page, updated } from '$app/state';
+  import { beforeNavigate } from '$app/navigation';
   import { base } from '$app/paths';
   import HeaderBar from '$lib/components/shell/HeaderBar.svelte';
   import TabRail from '$lib/components/shell/TabRail.svelte';
@@ -17,6 +18,18 @@
 
   let { children } = $props();
   let historyOpen = $state(false);
+
+  // Deploy version-skew guard. When SvelteKit's version poll (configured in
+  // svelte.config.js) detects a new deploy, `updated.current` flips true. On
+  // the next navigation we force a full-page load to the destination so the
+  // stale client never attempts a dead (renamed) chunk import — it lands on
+  // the fresh shell instead. This is the proactive half of the stale-chunk
+  // fix; hooks.client.ts's vite:preloadError reload is the reactive net.
+  beforeNavigate(({ to, willUnload }) => {
+    if (updated.current && to?.url && !willUnload) {
+      location.href = to.url.href;
+    }
+  });
 
   // TabRail visible on tool routes + the home redirect. Hidden on:
   //   - auth-form pages (login / signup / auth callback) — focus the form

@@ -26,6 +26,13 @@ import type { WorkerRequest, WorkerResponse } from './transformer.worker';
 
 export const WORKER_THRESHOLD_BYTES = 50_000;
 export const MAX_INPUT_BYTES = 1_048_576; // 1 MB
+/**
+ * Hard ceiling on how long we wait for a worker to reply. Defensive insurance
+ * against a "worker loaded but never posted back" hang (e.g. a worker chunk
+ * that fails to initialize without firing an `error` event). Generous — even
+ * a near-1 MB transform completes well under this.
+ */
+export const WORKER_REPLY_TIMEOUT_MS = 30_000;
 
 export interface RunInWorkerOptions {
   /** Optional cancellation handle. Aborting terminates the worker. */
@@ -168,6 +175,8 @@ async function runViaWorker(
   const id = ++requestSeq;
 
   return new Promise<string>((resolve, reject) => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
     function onMessage(ev: MessageEvent<WorkerResponse>) {
       if (!ev.data || ev.data.id !== id) return; // not ours; ignore.
       cleanup();
@@ -206,7 +215,24 @@ async function runViaWorker(
       reject(new DOMException('Aborted', 'AbortError'));
     }
 
+    function onTimeout() {
+      // Worker never replied and never errored — terminate it so the pool
+      // replaces it, and surface a retryable worker error instead of hanging.
+      cleanup();
+      workerPool.terminate(worker);
+      reject(
+        toThrowable(
+          Errors.worker(
+            `Worker did not respond within ${WORKER_REPLY_TIMEOUT_MS / 1000}s`,
+            undefined,
+            { transformerName, mode }
+          )
+        )
+      );
+    }
+
     function cleanup() {
+      if (timer !== undefined) clearTimeout(timer);
       worker.removeEventListener('message', onMessage as EventListener);
       worker.removeEventListener('error', onError as EventListener);
       if (signal) signal.removeEventListener('abort', onAbort);
@@ -221,6 +247,8 @@ async function runViaWorker(
       }
       signal.addEventListener('abort', onAbort);
     }
+
+    timer = setTimeout(onTimeout, WORKER_REPLY_TIMEOUT_MS);
 
     const req: WorkerRequest = { id, transformerName, mode, input, options };
     worker.postMessage(req);

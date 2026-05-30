@@ -2,6 +2,36 @@
 
 All notable changes to Cryptex OSS land here. Format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/). Versioning follows [SemVer](https://semver.org/).
 
+## [2.6.1] - 2026-05-31
+
+Fixes the intermittent "a tool sometimes gets stuck / its list never loads, and a page reload fixes it" bug on the GitHub Pages site.
+
+### Fixed
+
+- **Stale-chunk hang after a deploy (root cause).** Cryptex is a pure client-rendered SPA (`ssr = false`, `prerender = true`) served from GitHub Pages and redeployed often. Every deploy rehashes the lazily-imported JS chunk filenames; a browser holding an *older* app shell then tries to `import()` a chunk whose name no longer exists → 404 → the route never mounts → the tool stays blank → manual reload (fresh shell) fixes it. The non-determinism ("sometimes", "many tools", "reload fixes it") is the signature of this version-skew. Three coordinated fixes:
+  - `app/src/hooks.client.ts` (new): a `vite:preloadError` listener does a **one-time** guarded `location.reload()` the instant a chunk import 404s, so a stuck tool becomes a brief auto-refresh onto the fresh build instead of a dead end. Plus a `handleError` client hook that logs any other failure mode instead of letting it hang silently.
+  - `svelte.config.js`: `kit.version.pollInterval = 60_000` — SvelteKit polls `_app/version.json` (already unique per build) and flips the `updated` store when a new deploy is detected.
+  - `app/src/routes/+layout.svelte`: a `beforeNavigate` guard forces a full-page navigation when `updated.current` is true, so a client that already knows it is stale never attempts a dead client-side import.
+- **GitHub Pages deep-link 404.** The static adapter fallback was `index.html`, but GitHub Pages serves `404.html` for unresolved paths. Changed the fallback to `404.html` so deep-links and no-trailing-slash URLs (e.g. `/cryptex-oss/emoji`) fall through to the SPA shell and route correctly instead of hitting GitHub's own 404 page.
+
+### Changed
+
+- `app/src/lib/workers/runInWorker.ts`: added a 30s worker-reply timeout (defensive — terminates and surfaces a retryable error instead of awaiting forever if a worker ever loads but never posts back). Not implicated in the reported bug; belt-and-suspenders.
+- `svelte.config.js`: removed the dead `$legacy: '../js'` alias (the `js/` directory was deleted in v2.4.1).
+
+### Ruled out (investigated, not the cause)
+
+- Web Worker URL resolution under the base path — `pool.ts` uses the Vite-native `new Worker(new URL(..., import.meta.url))` pattern, which Vite rewrites to a correct base-aware hashed URL; workers also only engage for ≥50 KB inputs (never on tool-open).
+- Per-tool init / empty lists — Vault seeds load via eager `import.meta.glob` (bundled, never fetched); no await-forever on open.
+
+### Tests
+
+- 906 / 906 unit tests still pass; 0 type-check errors.
+
+### Image
+
+- `ghcr.io/m4xx101/cryptex-oss:v2.6.1` (multi-arch `linux/amd64` + `linux/arm64`). `:latest`, `:v2.6`, `:2.6`, `:v2`, `:2` all point at the same SHA.
+
 ## [2.6.0] - 2026-05-28
 
 The toolbox becomes a pipeline. Cryptex now has a **Campaign front door** — one page where you type a goal, pick a target once, and the tool fans your goal across many attack strategies, judges each with an LLM judge, and shows a graded ASR report. This is the shape every serious red-team framework (garak, PyRIT, promptfoo, DeepTeam) converges on, built entirely on parts Cryptex already shipped. The 26 individual tools remain as power-user escape hatches.
