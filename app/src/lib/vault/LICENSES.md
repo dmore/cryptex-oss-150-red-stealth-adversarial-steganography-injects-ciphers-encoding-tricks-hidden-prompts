@@ -3,7 +3,7 @@
 Every payload in Cryptex's Vault subsections is sourced from a permissively-licensed
 corpus, a research paper's openly-released artifacts, a public-domain Unicode reference,
 or a community-shared red-team write-up. This file is the authoritative provenance
-record for all 379 bundled seed items shipped under `app/src/lib/vault/seeds/` (and
+record for all 389 bundled seed items shipped under `app/src/lib/vault/seeds/` (and
 the small WordNet helper subset under `app/src/lib/fuzzer/`).
 
 Cryptex OSS itself is MIT-licensed (see [`/LICENSE`](../../../../LICENSE)). Bundled
@@ -51,8 +51,9 @@ license strings appear in the corpus.
 | `seeds/stacked-cipher.json` | 14 | MIT |
 | `seeds/response-attack.json` | 15 | MIT |
 | `seeds/abliteration.json` | 24 | MIT |
+| `seeds/structured-output.json` | 10 | MIT |
 | `fuzzer/wordnet-subset.json` | ~55 | WordNet (BSD-style) |
-| **Total bundled vault items** | **379** | — |
+| **Total bundled vault items** | **389** | — |
 
 ## Source-by-source breakdown
 
@@ -223,6 +224,18 @@ PromptCraft (TAP, PAIR, Crescendo, Many-Shot).
 | 5 | Chao et al. (2023) PAIR defaults | <https://arxiv.org/abs/2310.08419> | MIT (paper artifact) | Chao, P. et al. arXiv:2310.08419, 2023. |
 | 5 | Russinovich et al. (2024) Crescendo multi-turn defaults | <https://arxiv.org/abs/2404.01833> | MIT (paper artifact) | Russinovich, M., Salem, A. & Eldan, R. "Great, Now Write an Article About That: The Crescendo Multi-Turn LLM Jailbreak Attack." arXiv:2404.01833, 2024. |
 | 5 | Anthropic (2024) Many-Shot Jailbreaking defaults | <https://www.anthropic.com/research/many-shot-jailbreaking> | MIT (technique-parameter summaries; Cryptex-authored under repo MIT) | Anil, C. et al. "Many-shot Jailbreaking." Anthropic, 2024. |
+
+### Structured-Output / Control-Plane (`seeds/structured-output.json`, 10 items)
+
+Prompt-level "Trojan Schema" and schema-coercion templates from BreakFun
+(Inan et al., arXiv:2510.17904). Each item is a Cryptex-authored framing that
+decomposes a defensively-framed research subject into a schema the model
+populates, or a strict output contract. No harmful content is bundled; the
+subject field is supplied by the user at run time.
+
+| Count | Source | URL | License | Attribution |
+|---:|---|---|---|---|
+| 10 | BreakFun "Trojan Schema" prompt-level attack — framing structure | <https://arxiv.org/abs/2510.17904> | MIT (Cryptex-authored templates under repo MIT; paper attribution preserved) | "BreakFun: Jailbreaking LLMs via Schema-Guided Reasoning." arXiv:2510.17904, 2025. |
 
 ### WordNet subset (`app/src/lib/fuzzer/wordnet-subset.json`, ~55 entries)
 

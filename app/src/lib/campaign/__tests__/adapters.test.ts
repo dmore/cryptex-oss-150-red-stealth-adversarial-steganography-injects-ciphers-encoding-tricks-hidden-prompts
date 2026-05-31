@@ -115,4 +115,12 @@ describe('campaign adapters', () => {
     expect(resolveStrategies(['cipher:*']).length).toBeGreaterThanOrEqual(2);
     expect(resolveStrategies(['orch:*']).length).toBe(4);
   });
+
+  test('structured-output family resolves to single-local strategies (v2.7)', () => {
+    const structured = resolveStrategies(['structured:*']);
+    expect(structured.length).toBe(2); // trojan-schema + schema-coercion
+    expect(structured.every((s) => s.kind === 'single-local')).toBe(true);
+    expect(structured.every((s) => s.citation === 'arXiv:2510.17904')).toBe(true);
+    expect(structured.some((s) => s.id === 'structured:trojan-schema')).toBe(true);
+  });
 });

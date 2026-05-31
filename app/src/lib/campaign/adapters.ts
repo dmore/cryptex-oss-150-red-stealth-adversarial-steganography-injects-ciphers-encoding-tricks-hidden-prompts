@@ -28,6 +28,12 @@ import {
 } from '$lib/redteam/reasoning-attack';
 import { STACK_PRESETS, buildStackedCipherPayload, type CipherLayer } from '$lib/redteam/stacked-cipher';
 import { buildResponseAttack, PRIMING_STYLES } from '$lib/redteam/response-attack';
+import {
+  STRUCTURED_OUTPUT_KINDS,
+  buildStructuredOutputPayload,
+  kindLabel as structuredKindLabel,
+  type StructuredOutputKind
+} from '$lib/redteam/structured-output';
 import { byCategory } from '$lib/techniques/registry';
 import { applyTechniqueForVariant } from '$lib/components/tools/promptcraft/strategies';
 import { runTap } from '$lib/components/tools/promptcraft/orchestrators/tap';
@@ -97,6 +103,25 @@ function responseAttackAdapters(): CampaignStrategy[] {
       const verdict = await ctx.judge(ctx.goal, targetResponse);
       const payloadSent = built.turns.map((t) => `[${t.role}]\n${t.content}`).join('\n\n---\n\n');
       return { payloadSent, targetResponse, verdict, callCount: 1 };
+    }
+  }));
+}
+
+// ---------------------------------------------------------------------------
+// single-local: structured-output / control-plane (prompt-level BreakFun)
+// ---------------------------------------------------------------------------
+function structuredOutputAdapters(): CampaignStrategy[] {
+  return STRUCTURED_OUTPUT_KINDS.map((kind: StructuredOutputKind) => ({
+    id: `structured:${kind}`,
+    label: `Structured · ${structuredKindLabel(kind)}`,
+    kind: 'single-local' as const,
+    estimatedCalls: 1,
+    citation: 'arXiv:2510.17904',
+    async run(ctx) {
+      const { payload } = buildStructuredOutputPayload(ctx.goal, kind);
+      const targetResponse = await ctx.callTarget([{ role: 'user', content: payload }]);
+      const verdict = await ctx.judge(ctx.goal, targetResponse);
+      return { payloadSent: payload, targetResponse, verdict, callCount: 1 };
     }
   }));
 }
@@ -233,6 +258,7 @@ export function allCampaignStrategies(): CampaignStrategy[] {
       ...reasoningAdapters(),
       ...cipherAdapters(),
       ...responseAttackAdapters(),
+      ...structuredOutputAdapters(),
       ...mutatorAdapters(),
       ...orchestratorAdapters()
     ];

@@ -26,6 +26,7 @@
   import MessageSquareText from 'lucide-svelte/icons/message-square-text';
   import Unplug from 'lucide-svelte/icons/unplug';
   import Rocket from 'lucide-svelte/icons/rocket';
+  import Braces from 'lucide-svelte/icons/braces';
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   export type Tab = {
@@ -38,7 +39,9 @@
     toolId: string;
     /** Coarse group used by MobileNavDrawer to section the list. */
     group: 'techniques' | 'redteam';
-    status?: 'live' | 'soon';
+    // 'legacy' (v2.7): technique class frontier models patched — kept as an
+    // educational primitive / composable layer, not a standalone bypass.
+    status?: 'live' | 'soon' | 'legacy';
   };
 
   // Single source of truth for the visible tool list. Exported so
@@ -62,8 +65,8 @@
     { href: '/fuzzer',               label: 'Fuzzer',       icon: FlaskConical,     toolId: 'fuzzer',         group: 'techniques', status: 'live' },
     { href: '/promptcraft',          label: 'PromptCraft',  icon: Sparkles,         toolId: 'promptcraft',    group: 'techniques', status: 'live' },
     { href: '/anticlassifier',       label: 'Anti-classifier', icon: Shield,        toolId: 'anticlassifier', group: 'techniques', status: 'live' },
-    { href: '/redteam/adv-suffix',       label: 'AdvSuffix',  icon: Skull,           toolId: 'adv-suffix',       group: 'redteam', status: 'live' },
-    { href: '/redteam/glitch-tokens',    label: 'Glitch',     icon: Zap,             toolId: 'glitch-tokens',    group: 'redteam', status: 'live' },
+    { href: '/redteam/adv-suffix',       label: 'AdvSuffix',  icon: Skull,           toolId: 'adv-suffix',       group: 'redteam', status: 'legacy' },
+    { href: '/redteam/glitch-tokens',    label: 'Glitch',     icon: Zap,             toolId: 'glitch-tokens',    group: 'redteam', status: 'legacy' },
     { href: '/redteam/ocr-injection',    label: 'OCR Inject', icon: ImageIcon,       toolId: 'ocr-injection',    group: 'redteam', status: 'live' },
     { href: '/redteam/markdown-exfil',   label: 'MD Exfil',   icon: Link,            toolId: 'markdown-exfil',   group: 'redteam', status: 'live' },
     { href: '/redteam/probe-lab',        label: 'Probe Lab',  icon: Beaker,          toolId: 'probe-lab',        group: 'redteam', status: 'live' },
@@ -84,7 +87,9 @@
     // v2.3 (Wave 10.7): Response Attack (AAAI 2026 context-priming)
     { href: '/redteam/response-attack',    label: 'Response',    icon: MessageSquareText, toolId: 'response-attack', group: 'redteam', status: 'live' },
     // v2.3 (Wave 10.8): Abliteration probe + uncensored-model vault
-    { href: '/redteam/abliteration',       label: 'Abliteration', icon: Unplug,        toolId: 'abliteration',     group: 'redteam', status: 'live' }
+    { href: '/redteam/abliteration',       label: 'Abliteration', icon: Unplug,        toolId: 'abliteration',     group: 'redteam', status: 'live' },
+    // v2.7 (Wave 20.1): structured-output / control-plane attack (prompt-level BreakFun)
+    { href: '/redteam/structured-output',  label: 'Structured',  icon: Braces,         toolId: 'structured-output', group: 'redteam', status: 'live' }
   ];
 </script>
 
@@ -178,6 +183,14 @@
           {#if tab.status === 'soon'}
             <span class="rounded-full bg-muted px-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground group-hover:bg-card group-hover:text-foreground/70">
               soon
+            </span>
+          {/if}
+          {#if tab.status === 'legacy'}
+            <span
+              title="Legacy — low yield on frontier models; kept as an educational primitive / composable layer"
+              class="rounded-full bg-amber-500/15 px-1.5 text-[10px] font-medium uppercase tracking-wider text-amber-500/90 group-hover:bg-amber-500/25"
+            >
+              legacy
             </span>
           {/if}
           {#if running}
